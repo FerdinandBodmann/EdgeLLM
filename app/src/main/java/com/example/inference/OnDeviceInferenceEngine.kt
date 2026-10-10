@@ -272,7 +272,15 @@ class OnDeviceInferenceEngine(private val context: Context) {
                 "How can I assist you with offline computing, coding, or problem solving today?"
             }
 
-            lower.contains("code") || lower.contains("function") || lower.contains("kotlin") || lower.contains("python") || lower.contains("algorithm") -> {
+            lower.contains("code") || lower.contains("function") || lower.contains("write") ||
+            lower.contains("kotlin") || lower.contains("python") || lower.contains("javascript") ||
+            lower.contains("typescript") || lower.contains("java") || lower.contains("c++") ||
+            lower.contains("cpp") || lower.contains("rust") || lower.contains("swift") ||
+            lower.contains("go") || lower.contains("sql") || lower.contains("script") ||
+            lower.contains("algorithm") || lower.contains("class") || lower.contains("bug") ||
+            lower.contains("fix") || lower.contains("debug") || lower.contains("loop") ||
+            lower.contains("array") || lower.contains("json") || lower.contains("regex") ||
+            lower.contains("html") || lower.contains("css") -> {
                 generateCodeResponse(prompt, model)
             }
 
@@ -331,37 +339,97 @@ class OnDeviceInferenceEngine(private val context: Context) {
     private fun generateCodeResponse(prompt: String, model: ModelInfo): String {
         return buildString {
             append("Here is an optimized implementation tailored for your request:\n\n")
-            if (prompt.contains("python", ignoreCase = true)) {
-                append("```python\n")
-                append("# On-Device Edge Processing in Python\n")
-                append("import math\nfrom typing import List, Optional\n\n")
-                append("class EdgeProcessor:\n")
-                append("    def __init__(self, model_name: str = \"${model.name}\"):\n")
-                append("        self.model_name = model_name\n")
-                append("        self.kv_cache = []\n\n")
-                append("    def process_stream(self, tokens: List[int]) -> float:\n")
-                append("        \"\"\"Executes single-pass autoregressive forward step.\"\"\"\n")
-                append("        score = sum(math.log(1 + abs(t)) for t in tokens)\n")
-                append("        return round(score / max(len(tokens), 1), 4)\n\n")
-                append("# Demonstration execution\n")
-                append("processor = EdgeProcessor()\n")
-                append("print(f\"Active model: {processor.model_name}\")\n")
-                append("print(f\"Metric score: {processor.process_stream([42, 108, 999])}\")\n")
-                append("```\n\n")
-            } else {
-                append("```kotlin\n")
-                append("// Kotlin Coroutines Flow for Offline Streaming\n")
-                append("import kotlinx.coroutines.flow.Flow\n")
-                append("import kotlinx.coroutines.flow.flow\n\n")
-                append("class OnDeviceRunner(val modelName: String = \"${model.name}\") {\n")
-                append("    fun streamTokens(prompt: String): Flow<String> = flow {\n")
-                append("        val tokens = prompt.split(\" \")\n")
-                append("        for (token in tokens) {\n")
-                append("            emit(\"\$token \")\n")
-                append("        }\n")
-                append("    }\n")
-                append("}\n")
-                append("```\n\n")
+            val pLower = prompt.lowercase()
+            when {
+                pLower.contains("python") || pLower.contains("numpy") || pLower.contains("pandas") -> {
+                    append("```python\n")
+                    append("# On-Device Edge Processing in Python\n")
+                    append("import math\nfrom typing import List, Optional\n\n")
+                    append("class EdgeProcessor:\n")
+                    append("    def __init__(self, model_name: str = \"${model.name}\"):\n")
+                    append("        self.model_name = model_name\n")
+                    append("        self.kv_cache = []\n\n")
+                    append("    def process_stream(self, tokens: List[int]) -> float:\n")
+                    append("        \"\"\"Executes single-pass autoregressive forward step.\"\"\"\n")
+                    append("        score = sum(math.log(1 + abs(t)) for t in tokens)\n")
+                    append("        return round(score / max(len(tokens), 1), 4)\n\n")
+                    append("# Demonstration execution\n")
+                    append("processor = EdgeProcessor()\n")
+                    append("print(f\"Active model: {processor.model_name}\")\n")
+                    append("print(f\"Metric score: {processor.process_stream([42, 108, 999])}\")\n")
+                    append("```\n\n")
+                }
+                pLower.contains("javascript") || pLower.contains("typescript") || pLower.contains("react") || pLower.contains("node") || pLower.contains("js") || pLower.contains("ts") -> {
+                    append("```typescript\n")
+                    append("// Streaming Token Decoder in TypeScript\n")
+                    append("interface TokenChunk {\n")
+                    append("  text: string;\n")
+                    append("  tokenIndex: number;\n")
+                    append("  isDone: boolean;\n")
+                    append("}\n\n")
+                    append("export async function* streamInference(prompt: string): AsyncGenerator<TokenChunk> {\n")
+                    append("  const words = prompt.trim().split(/\\s+/);\n")
+                    append("  for (let i = 0; i < words.length; i++) {\n")
+                    append("    yield {\n")
+                    append("      text: words[i] + ' ',\n")
+                    append("      tokenIndex: i,\n")
+                    append("      isDone: i === words.length - 1\n")
+                    append("    };\n")
+                    append("  }\n")
+                    append("}\n")
+                    append("```\n\n")
+                }
+                pLower.contains("rust") -> {
+                    append("```rust\n")
+                    append("// High-performance zero-copy token buffer in Rust\n")
+                    append("pub struct TokenBuffer<'a> {\n")
+                    append("    tokens: &'a [u32],\n")
+                    append("    cursor: usize,\n")
+                    append("}\n\n")
+                    append("impl<'a> TokenBuffer<'a> {\n")
+                    append("    pub fn new(tokens: &'a [u32]) -> Self {\n")
+                    append("        Self { tokens, cursor: 0 }\n")
+                    append("    }\n\n")
+                    append("    pub fn next_token(&mut self) -> Option<u32> {\n")
+                    append("        if self.cursor < self.tokens.len() {\n")
+                    append("            let tok = self.tokens[self.cursor];\n")
+                    append("            self.cursor += 1;\n")
+                    append("            Some(tok)\n")
+                    append("        } else {\n")
+                    append("            None\n")
+                    append("        }\n")
+                    append("    }\n")
+                    append("}\n")
+                    append("```\n\n")
+                }
+                pLower.contains("sql") || pLower.contains("query") || pLower.contains("table") -> {
+                    append("```sql\n")
+                    append("-- Model telemetry query and token statistics\n")
+                    append("SELECT \n")
+                    append("    model_name,\n")
+                    append("    COUNT(*) AS total_queries,\n")
+                    append("    ROUND(AVG(tokens_per_sec), 2) AS avg_speed_tok_s,\n")
+                    append("    MIN(ttft_ms) AS best_ttft_ms\n")
+                    append("FROM inference_telemetry\n")
+                    append("GROUP BY model_name\n")
+                    append("ORDER BY avg_speed_tok_s DESC;\n")
+                    append("```\n\n")
+                }
+                else -> {
+                    append("```kotlin\n")
+                    append("// Kotlin Coroutines Flow for Offline Streaming\n")
+                    append("import kotlinx.coroutines.flow.Flow\n")
+                    append("import kotlinx.coroutines.flow.flow\n\n")
+                    append("class OnDeviceRunner(val modelName: String = \"${model.name}\") {\n")
+                    append("    fun streamTokens(prompt: String): Flow<String> = flow {\n")
+                    append("        val tokens = prompt.split(\" \")\n")
+                    append("        for (token in tokens) {\n")
+                    append("            emit(\"\$token \")\n")
+                    append("        }\n")
+                    append("    }\n")
+                    append("}\n")
+                    append("```\n\n")
+                }
             }
             append("### Key Architectural Highlights:\n")
             append("1. **Zero Allocations in Loop:** Minimizes GC overhead for continuous high-framerate rendering.\n")

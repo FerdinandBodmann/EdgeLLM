@@ -63,8 +63,45 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-          echo "Verifying debug.keystore existence:"
-          ls -la debug.keystore
+          # 4. Ensure minimal google-services.json exists for Google Services Gradle plugin
+          if [ ! -f app/google-services.json ]; then
+            echo "Creating fallback app/google-services.json..."
+            mkdir -p app
+            cat << 'EOF' > app/google-services.json
+{
+  "project_info": {
+    "project_number": "123456789012",
+    "project_id": "synapse-local-app",
+    "storage_bucket": "synapse-local-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123456789012:android:abcdef0123456789",
+        "android_client_info": {
+          "package_name": "com.aistudio.edgellm.vrmqpt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "dummy_api_key"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
+EOF
+          fi
+
+          echo "Verifying build prerequisites:"
+          ls -la debug.keystore app/google-services.json
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

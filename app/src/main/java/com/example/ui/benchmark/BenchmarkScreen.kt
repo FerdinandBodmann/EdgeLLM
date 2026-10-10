@@ -77,9 +77,6 @@ fun BenchmarkScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp)
     ) {
         // Top Header
         Surface(
@@ -90,7 +87,8 @@ fun BenchmarkScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Text(
                     text = "Benchmark & Engine Settings",
@@ -108,7 +106,15 @@ fun BenchmarkScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Scrollable content area
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 32.dp)
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
 
         // Benchmark Section Card
         Card(
@@ -461,6 +467,7 @@ fun BenchmarkScreen(
             }
         }
     }
+}
 }
 
 @Composable

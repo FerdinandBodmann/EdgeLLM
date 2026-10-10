@@ -104,9 +104,6 @@ fun StorageDashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp)
     ) {
         // Claude Top Header Bar
         Surface(
@@ -117,7 +114,8 @@ fun StorageDashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -153,7 +151,15 @@ fun StorageDashboardScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Scrollable content area
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 32.dp)
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
 
         // 4 KPI Summary Cards Grid
         Column(
@@ -530,6 +536,7 @@ fun StorageDashboardScreen(
             }
         }
     }
+}
 
     fileToDelete?.let { file ->
         AlertDialog(
