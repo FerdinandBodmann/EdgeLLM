@@ -36,12 +36,35 @@ jobs:
 
       - name: Prepare Environment and Keystore
         run: |
+          # 1. Ensure .env exists for Secrets Gradle Plugin
           if [ -f .env.example ] && [ ! -f .env ]; then
             cp .env.example .env
+          elif [ ! -f .env ]; then
+            touch .env
           fi
-          if [ -f debug.keystore.base64 ] && [ ! -f debug.keystore ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
+
+          # 2. Decode debug.keystore from base64 if present
+          if [ -f debug.keystore.base64 ]; then
+            echo "Attempting to decode debug.keystore.base64..."
+            base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || base64 --decode debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
+
+          # 3. Generate debug.keystore if missing or empty (matching debugConfig alias and passwords)
+          if [ ! -s debug.keystore ]; then
+            echo "debug.keystore missing or empty. Generating with keytool..."
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          echo "Verifying debug.keystore existence:"
+          ls -la debug.keystore
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
