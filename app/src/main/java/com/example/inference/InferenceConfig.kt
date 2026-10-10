@@ -14,5 +14,5 @@ data class InferenceConfig(
     val repetitionPenalty: Float = 1.1f,
     val threadCount: Int = 4,
     val computeBackend: ComputeBackend = ComputeBackend.CPU_NEON,
-    val systemPrompt: String = "You are EdgeLLM, an intelligent on-device AI running natively and privately on this Android device without internet connectivity."
+    val systemPrompt: String = "You are Synapse, a thoughtful on-device AI running natively and privately on this Android device without internet connectivity."
 )

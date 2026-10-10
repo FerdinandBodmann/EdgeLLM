@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "EdgeLLM"
+rootProject.name = "Synapse"
 
 include(":app")

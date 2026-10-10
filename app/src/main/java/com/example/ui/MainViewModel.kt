@@ -57,7 +57,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val promptInput = MutableStateFlow("")
 
     val systemPersonas = listOf(
-        "General Assistant" to "You are EdgeLLM, an intelligent on-device AI running natively and privately on this Android device without internet connectivity.",
+        "General Assistant" to "You are Synapse, a thoughtful on-device AI running natively and privately on this Android device without internet connectivity.",
         "Code Copilot" to "You are an expert offline code assistant. Provide clean, secure, idiomatic code examples with concise technical explanations.",
         "Concise Analyzer" to "You are a concise, direct analytical AI. Provide structured bullet points, clear facts, and zero conversational fluff.",
         "Creative Writer" to "You are an imaginative creative writer and brainstorming partner running locally on device.",
@@ -79,9 +79,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _benchmarkProgress = MutableStateFlow<BenchmarkProgress>(BenchmarkProgress.Idle)
     val benchmarkProgress: StateFlow<BenchmarkProgress> = _benchmarkProgress.asStateFlow()
 
-    // Storage Statistics
+    // Storage Statistics & Downloaded Inventory
     private val _storageStats = MutableStateFlow(modelManager.getStorageStats())
     val storageStats: StateFlow<StorageStats> = _storageStats.asStateFlow()
+
+    private val _downloadedFiles = MutableStateFlow(modelManager.getDownloadedModelFiles())
+    val downloadedFiles: StateFlow<List<com.example.models.DownloadedModelFile>> = _downloadedFiles.asStateFlow()
 
     private var streamingJob: Job? = null
     private var benchmarkJob: Job? = null
@@ -264,6 +267,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         refreshStorage()
     }
 
+    fun downloadFromDirectUrl(url: String, customName: String? = null, paramSize: String = "Quantized", sizeMb: Int = 800) {
+        val model = modelManager.downloadFromDirectUrl(url, customName, paramSize, sizeMb, viewModelScope)
+        refreshStorage()
+    }
+
+    fun pullOllamaTag(tag: String) {
+        val model = modelManager.pullOllamaTag(tag, viewModelScope)
+        refreshStorage()
+    }
+
     fun deleteModel(modelId: String) {
         modelManager.deleteModel(modelId)
         refreshStorage()
@@ -282,8 +295,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun refreshStorage() {
+    fun clearAllDownloadedModels() {
+        viewModelScope.launch {
+            modelManager.clearAllDownloadedModels()
+            val activeModel = modelManager.getActiveModelInfo()
+            inferenceEngine.loadModel(activeModel)
+            refreshStorage()
+        }
+    }
+
+    fun refreshStorage() {
         _storageStats.value = modelManager.getStorageStats()
+        _downloadedFiles.value = modelManager.getDownloadedModelFiles()
     }
 
     // Tuning & Hyperparameters

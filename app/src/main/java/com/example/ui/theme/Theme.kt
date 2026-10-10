@@ -4,67 +4,57 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = ElectricCyan,
-    onPrimary = Color(0xFF00382E),
-    primaryContainer = Color(0xFF005144),
-    onPrimaryContainer = Color(0xFF6EFFF0),
-    secondary = SoftBlue,
-    onSecondary = Color(0xFF00315D),
-    secondaryContainer = Color(0xFF1E3A5F),
-    onSecondaryContainer = Color(0xFFD2E4FF),
-    tertiary = VioletAccent,
-    background = DarkBackground,
-    onBackground = DarkTextPrimary,
-    surface = DarkSurface,
-    onSurface = DarkTextPrimary,
-    surfaceVariant = DarkSurfaceElevated,
-    onSurfaceVariant = DarkTextSecondary,
-    outline = DarkBorder,
-    outlineVariant = DarkSurfaceHighlight
+    primary = ClaudeCoral,
+    onPrimary = Color(0xFF2A150D),
+    primaryContainer = ClaudeCoralContainerDark,
+    onPrimaryContainer = ClaudeCoralLight,
+    secondary = ClaudeAmberWheat,
+    onSecondary = Color(0xFF291C0E),
+    secondaryContainer = Color(0xFF382C1D),
+    onSecondaryContainer = Color(0xFFF7DEB8),
+    tertiary = ClaudeOliveSage,
+    background = ClaudeDarkBackground,
+    onBackground = ClaudeDarkTextPrimary,
+    surface = ClaudeDarkSurface,
+    onSurface = ClaudeDarkTextPrimary,
+    surfaceVariant = ClaudeDarkSurfaceElevated,
+    onSurfaceVariant = ClaudeDarkTextSecondary,
+    outline = ClaudeDarkBorder,
+    outlineVariant = ClaudeDarkSurfaceHighlight
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = DeepCyan,
+    primary = ClaudeCoral,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFB4F3E8),
-    onPrimaryContainer = Color(0xFF00201B),
-    secondary = CobaltBlue,
+    primaryContainer = ClaudeCoralContainerLight,
+    onPrimaryContainer = ClaudeCoralDark,
+    secondary = ClaudeAmberWheat,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD6E4FF),
-    onSecondaryContainer = Color(0xFF001A40),
-    tertiary = VioletAccent,
-    background = LightBackground,
-    onBackground = LightTextPrimary,
-    surface = LightSurface,
-    onSurface = LightTextPrimary,
-    surfaceVariant = LightSurfaceElevated,
-    onSurfaceVariant = LightTextSecondary,
-    outline = LightBorder,
-    outlineVariant = LightSurfaceHighlight
+    secondaryContainer = Color(0xFFF8EDE0),
+    onSecondaryContainer = Color(0xFF422E15),
+    tertiary = ClaudeOliveSage,
+    background = ClaudeLightBackground,
+    onBackground = ClaudeLightTextPrimary,
+    surface = ClaudeLightSurface,
+    onSurface = ClaudeLightTextPrimary,
+    surfaceVariant = ClaudeLightSurfaceElevated,
+    onSurfaceVariant = ClaudeLightTextSecondary,
+    outline = ClaudeLightBorder,
+    outlineVariant = ClaudeLightSurfaceHighlight
 )
 
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Keep intentional brand colors
+    dynamicColor: Boolean = false, // Keep intentional Claude branding
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,

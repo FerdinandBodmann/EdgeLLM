@@ -218,6 +218,9 @@ class OnDeviceInferenceEngine(private val context: Context) {
         userPrompt: String
     ): String {
         return when (modelFamily) {
+            "DeepSeek" -> buildString {
+                append("<｜begin of sentence｜><｜User｜>$userPrompt<｜Assistant｜><think>\n")
+            }
             "Gemma" -> buildString {
                 append("<start_of_turn>system\n$systemPrompt<end_of_turn>\n")
                 for ((role, content) in history) {
@@ -225,14 +228,14 @@ class OnDeviceInferenceEngine(private val context: Context) {
                 }
                 append("<start_of_turn>user\n$userPrompt<end_of_turn>\n<start_of_turn>model\n")
             }
-            "LLaMA" -> buildString {
-                append("<s>[INST] <<SYS>>\n$systemPrompt\n<</SYS>>\n\n")
+            "LLaMA", "Mistral" -> buildString {
+                append("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n$systemPrompt<|eot_id|>")
                 for ((role, content) in history) {
-                    if (role == "user") append("$content [/INST] ") else append("$content </s><s>[INST] ")
+                    append("<|start_header_id|>$role<|end_header_id|>\n$content<|eot_id|>")
                 }
-                append("$userPrompt [/INST] ")
+                append("<|start_header_id|>user<|end_header_id|>\n$userPrompt<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n")
             }
-            else -> buildString { // ChatML format (SmolLM, Qwen, Phi, NanoLLM)
+            else -> buildString { // ChatML format (SmolLM, Qwen, Phi, NanoLLM, Ollama)
                 append("<|im_start|>system\n$systemPrompt<|im_end|>\n")
                 for ((role, content) in history) {
                     append("<|im_start|>$role\n$content<|im_end|>\n")
@@ -253,7 +256,7 @@ class OnDeviceInferenceEngine(private val context: Context) {
     ): List<String> {
         val lower = prompt.lowercase().trim()
 
-        val fullResponse = when {
+        val baseResponse = when {
             lower.contains("who are you") || lower.contains("what are you") || lower.contains("introduce yourself") -> {
                 "I am **${model.name}**, executing **100% offline** on this device using an embedded on-device inference engine.\n\n" +
                 "• **Model Architecture:** ${model.family} (${model.parameterCount})\n" +
@@ -287,7 +290,7 @@ class OnDeviceInferenceEngine(private val context: Context) {
 
             lower.contains("offline") || lower.contains("privacy") || lower.contains("internet") || lower.contains("airplane") -> {
                 "### 🔒 Offline Privacy Guarantee\n\n" +
-                "EdgeLLM operates with **strict local-first execution**:\n\n" +
+                "Synapse operates with **strict local-first execution**:\n\n" +
                 "1. **Zero Outbound Traffic:** Token generation occurs purely within device CPU registers and GPU compute shaders.\n" +
                 "2. **Airplane Mode Proof:** You can switch on Airplane Mode right now, and all inference continues with zero interruption.\n" +
                 "3. **Local Storage:** Model weights and chat histories reside securely within your app's private sandbox directory.\n" +
@@ -308,6 +311,17 @@ class OnDeviceInferenceEngine(private val context: Context) {
             else -> {
                 generateGeneralThoughtfulResponse(prompt, model)
             }
+        }
+
+        val fullResponse = if (model.family == "DeepSeek") {
+            "<think>\n" +
+            "Analyzing prompt: \"$prompt\"\n" +
+            "• Running inference locally on ARM compute backend (${config.computeBackend.displayName})\n" +
+            "• Context sequence within ${model.contextLength} tokens\n" +
+            "• Synthesizing direct derivation\n" +
+            "</think>\n\n" + baseResponse
+        } else {
+            baseResponse
         }
 
         // Tokenize into natural subword chunks to simulate real token streaming

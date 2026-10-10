@@ -1,6 +1,6 @@
 {
-  "name": "EdgeLLM",
-  "description": "Natively runs LLM models offline using an on-device inference engine with real-time streaming and model management.",
+  "name": "Synapse",
+  "description": "A quiet, offline-first on-device AI companion with a minimalist Claude-inspired design. Natively runs open LLM models offline with real-time streaming and model management.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -1,8 +1,73 @@
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/ic_launcher_ai_chip_1791625895412"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Neural Network Connecting Edges (Input -> Hidden -> Output) -->
+    <!-- Input to Hidden Layer Connections -->
+    <path
+        android:pathData="M36,42 L54,34 M36,42 L54,54 M36,42 L54,74"
+        android:strokeWidth="1.8"
+        android:strokeColor="#A8826B"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M36,66 L54,34 M36,66 L54,54 M36,66 L54,74"
+        android:strokeWidth="1.8"
+        android:strokeColor="#A8826B"
+        android:strokeLineCap="round" />
+
+    <!-- Hidden to Output Layer Connections -->
+    <path
+        android:pathData="M54,34 L72,54 M54,54 L72,54 M54,74 L72,54"
+        android:strokeWidth="2.2"
+        android:strokeColor="#C96846"
+        android:strokeLineCap="round" />
+
+    <!-- Input Neurons (2 nodes) -->
+    <path
+        android:fillColor="#D97757"
+        android:pathData="M36,37.5 A4.5,4.5 0 1,1 35.9,37.5 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M36,40.2 A1.8,1.8 0 1,1 35.9,40.2 Z" />
+
+    <path
+        android:fillColor="#D97757"
+        android:pathData="M36,61.5 A4.5,4.5 0 1,1 35.9,61.5 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M36,64.2 A1.8,1.8 0 1,1 35.9,64.2 Z" />
+
+    <!-- Hidden Layer Neurons (3 nodes) -->
+    <path
+        android:fillColor="#D97757"
+        android:pathData="M54,29 A5,5 0 1,1 53.9,29 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M54,32 A2,2 0 1,1 53.9,32 Z" />
+
+    <path
+        android:fillColor="#E08365"
+        android:pathData="M54,48.5 A5.5,5.5 0 1,1 53.9,48.5 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M54,51.8 A2.2,2.2 0 1,1 53.9,51.8 Z" />
+
+    <path
+        android:fillColor="#D97757"
+        android:pathData="M54,69 A5,5 0 1,1 53.9,69 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M54,72 A2,2 0 1,1 53.9,72 Z" />
+
+    <!-- Focal Output Neuron (1 prominent node) -->
+    <path
+        android:fillColor="#F09275"
+        android:pathData="M72,47.5 A6.5,6.5 0 1,1 71.9,47.5 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M72,51.4 A2.6,2.6 0 1,1 71.9,51.4 Z" />
+
+</vector>

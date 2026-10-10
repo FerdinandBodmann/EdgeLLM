@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Icon
@@ -32,8 +35,9 @@ import androidx.compose.ui.unit.dp
 import com.example.ui.MainViewModel
 import com.example.ui.benchmark.BenchmarkScreen
 import com.example.ui.chat.ChatScreen
+import com.example.ui.dashboard.StorageDashboardScreen
 import com.example.ui.models.ModelManagerScreen
-import com.example.ui.theme.ElectricCyan
+import com.example.ui.theme.ClaudeCoral
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -46,14 +50,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
-                EdgeLLMApp(viewModel = viewModel)
+                SynapseApp(viewModel = viewModel)
             }
         }
     }
 }
 
 @Composable
-fun EdgeLLMApp(viewModel: MainViewModel) {
+fun SynapseApp(viewModel: MainViewModel) {
     val selectedTab by viewModel.selectedTab.collectAsState()
 
     // Handle back button to return to Chat tab if on sub-screens
@@ -66,7 +70,7 @@ fun EdgeLLMApp(viewModel: MainViewModel) {
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp,
+                tonalElevation = 2.dp,
                 modifier = Modifier.testTag("bottom_nav_bar")
             ) {
                 NavigationBarItem(
@@ -74,14 +78,16 @@ fun EdgeLLMApp(viewModel: MainViewModel) {
                     onClick = { viewModel.selectedTab.value = 0 },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == 0) Icons.Filled.Forum else Icons.Outlined.Forum,
+                            imageVector = if (selectedTab == 0) Icons.Filled.ChatBubble else Icons.Outlined.ChatBubbleOutline,
                             contentDescription = "Chat"
                         )
                     },
                     label = { Text("Chat") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedTextColor = ClaudeCoral,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     modifier = Modifier.testTag("nav_tab_chat")
                 )
@@ -91,16 +97,18 @@ fun EdgeLLMApp(viewModel: MainViewModel) {
                     onClick = { viewModel.selectedTab.value = 1 },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == 1) Icons.Filled.Memory else Icons.Outlined.Memory,
-                            contentDescription = "Models"
+                            imageVector = if (selectedTab == 1) Icons.Filled.Dashboard else Icons.Outlined.Dashboard,
+                            contentDescription = "Dashboard"
                         )
                     },
-                    label = { Text("Models") },
+                    label = { Text("Dashboard") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedTextColor = ClaudeCoral,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
-                    modifier = Modifier.testTag("nav_tab_models")
+                    modifier = Modifier.testTag("nav_tab_dashboard")
                 )
 
                 NavigationBarItem(
@@ -108,14 +116,35 @@ fun EdgeLLMApp(viewModel: MainViewModel) {
                     onClick = { viewModel.selectedTab.value = 2 },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == 2) Icons.Filled.Speed else Icons.Outlined.Speed,
+                            imageVector = if (selectedTab == 2) Icons.Filled.Memory else Icons.Outlined.Memory,
+                            contentDescription = "Models"
+                        )
+                    },
+                    label = { Text("Models") },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedTextColor = ClaudeCoral,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.testTag("nav_tab_models")
+                )
+
+                NavigationBarItem(
+                    selected = (selectedTab == 3),
+                    onClick = { viewModel.selectedTab.value = 3 },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTab == 3) Icons.Filled.Speed else Icons.Outlined.Speed,
                             contentDescription = "Benchmark & Settings"
                         )
                     },
                     label = { Text("Benchmark") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedTextColor = ClaudeCoral,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     modifier = Modifier.testTag("nav_tab_benchmark")
                 )
@@ -129,8 +158,9 @@ fun EdgeLLMApp(viewModel: MainViewModel) {
         ) {
             when (selectedTab) {
                 0 -> ChatScreen(viewModel = viewModel)
-                1 -> ModelManagerScreen(viewModel = viewModel)
-                2 -> BenchmarkScreen(viewModel = viewModel)
+                1 -> StorageDashboardScreen(viewModel = viewModel)
+                2 -> ModelManagerScreen(viewModel = viewModel)
+                3 -> BenchmarkScreen(viewModel = viewModel)
             }
         }
     }

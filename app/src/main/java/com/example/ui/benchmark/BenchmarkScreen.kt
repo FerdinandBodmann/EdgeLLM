@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Memory
@@ -56,10 +57,12 @@ import com.example.inference.BenchmarkProgress
 import com.example.inference.BenchmarkResult
 import com.example.inference.ComputeBackend
 import com.example.ui.MainViewModel
-import com.example.ui.theme.ElectricCyan
-import com.example.ui.theme.ErrorRed
-import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.WarningAmber
+import com.example.ui.theme.ClaudeAmberWheat
+import com.example.ui.theme.ClaudeCoral
+import com.example.ui.theme.ClaudeCoralLight
+import com.example.ui.theme.WarmErrorRed
+import com.example.ui.theme.WarmSuccessGreen
+import com.example.ui.theme.WarmWarningAmber
 
 @Composable
 fun BenchmarkScreen(
@@ -82,7 +85,7 @@ fun BenchmarkScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
         ) {
             Column(
                 modifier = Modifier
@@ -113,9 +116,8 @@ fun BenchmarkScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -125,7 +127,7 @@ fun BenchmarkScreen(
                     Icon(
                         imageVector = Icons.Default.Speed,
                         contentDescription = null,
-                        tint = ElectricCyan,
+                        tint = ClaudeCoral,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -153,13 +155,14 @@ fun BenchmarkScreen(
                         Button(
                             onClick = { viewModel.runBenchmark() },
                             shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = ClaudeCoral),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("run_benchmark_button")
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Run Speed Stress Test")
+                            Text("Run Speed Stress Test", fontWeight = FontWeight.SemiBold)
                         }
                     }
 
@@ -174,14 +177,14 @@ fun BenchmarkScreen(
                                     text = "Testing: ${progress.tokensCompleted}/${progress.totalTokens} tokens",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = ElectricCyan
+                                        color = ClaudeCoral
                                     )
                                 )
                                 Text(
                                     text = "${progress.currentSpeedTokPerSec} tok/s",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = ClaudeAmberWheat
                                     )
                                 )
                             }
@@ -192,12 +195,13 @@ fun BenchmarkScreen(
                                     .fillMaxWidth()
                                     .height(8.dp)
                                     .clip(RoundedCornerShape(4.dp)),
-                                color = ElectricCyan
+                                color = ClaudeCoral,
+                                trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = { viewModel.cancelBenchmark() },
-                                colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
+                                colors = ButtonDefaults.buttonColors(containerColor = WarmErrorRed),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -209,7 +213,7 @@ fun BenchmarkScreen(
                     }
 
                     is BenchmarkProgress.Completed -> {
-                        BenchmarkResultView(result = progress.result, onRerun = { viewModel.runBenchmark() })
+                        ClaudeBenchmarkResultView(result = progress.result, onRerun = { viewModel.runBenchmark() })
                     }
                 }
             }
@@ -223,9 +227,8 @@ fun BenchmarkScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -235,7 +238,7 @@ fun BenchmarkScreen(
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = ClaudeCoral,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -269,8 +272,15 @@ fun BenchmarkScreen(
                             onClick = { viewModel.updateComputeBackend(backend) },
                             label = { Text(backend.tag.uppercase(), fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                selectedContainerColor = ClaudeCoral.copy(alpha = 0.15f),
+                                selectedLabelColor = ClaudeCoral,
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = (config.computeBackend == backend),
+                                borderColor = if (config.computeBackend == backend) ClaudeCoral else MaterialTheme.colorScheme.outline
                             ),
                             modifier = Modifier.testTag("backend_chip_${backend.tag}")
                         )
@@ -292,7 +302,7 @@ fun BenchmarkScreen(
                         text = "${config.threadCount} Cores",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = ElectricCyan
+                            color = ClaudeCoral
                         )
                     )
                 }
@@ -301,7 +311,7 @@ fun BenchmarkScreen(
                     onValueChange = { viewModel.updateThreadCount(it.toInt()) },
                     valueRange = 1f..8f,
                     steps = 6,
-                    colors = SliderDefaults.colors(thumbColor = ElectricCyan, activeTrackColor = ElectricCyan),
+                    colors = SliderDefaults.colors(thumbColor = ClaudeCoral, activeTrackColor = ClaudeCoral),
                     modifier = Modifier.testTag("thread_count_slider")
                 )
 
@@ -320,7 +330,7 @@ fun BenchmarkScreen(
                         text = "%.2f".format(config.temperature),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = ElectricCyan
+                            color = ClaudeCoral
                         )
                     )
                 }
@@ -328,7 +338,7 @@ fun BenchmarkScreen(
                     value = config.temperature,
                     onValueChange = { viewModel.updateTemperature(it) },
                     valueRange = 0.1f..1.5f,
-                    colors = SliderDefaults.colors(thumbColor = ElectricCyan, activeTrackColor = ElectricCyan),
+                    colors = SliderDefaults.colors(thumbColor = ClaudeCoral, activeTrackColor = ClaudeCoral),
                     modifier = Modifier.testTag("temperature_slider")
                 )
 
@@ -347,7 +357,7 @@ fun BenchmarkScreen(
                         text = "%.2f".format(config.topP),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = ElectricCyan
+                            color = ClaudeCoral
                         )
                     )
                 }
@@ -355,7 +365,7 @@ fun BenchmarkScreen(
                     value = config.topP,
                     onValueChange = { viewModel.updateTopP(it) },
                     valueRange = 0.1f..1.0f,
-                    colors = SliderDefaults.colors(thumbColor = ElectricCyan, activeTrackColor = ElectricCyan)
+                    colors = SliderDefaults.colors(thumbColor = ClaudeCoral, activeTrackColor = ClaudeCoral)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -373,7 +383,7 @@ fun BenchmarkScreen(
                         text = "${config.maxTokens} tok",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = ElectricCyan
+                            color = ClaudeCoral
                         )
                     )
                 }
@@ -381,7 +391,7 @@ fun BenchmarkScreen(
                     value = config.maxTokens.toFloat(),
                     onValueChange = { viewModel.updateMaxTokens(it.toInt()) },
                     valueRange = 64f..2048f,
-                    colors = SliderDefaults.colors(thumbColor = ElectricCyan, activeTrackColor = ElectricCyan)
+                    colors = SliderDefaults.colors(thumbColor = ClaudeCoral, activeTrackColor = ClaudeCoral)
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -415,15 +425,16 @@ fun BenchmarkScreen(
                 .padding(horizontal = 16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Security,
                         contentDescription = null,
-                        tint = SuccessGreen,
+                        tint = WarmSuccessGreen,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -438,7 +449,7 @@ fun BenchmarkScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "• All inference runs strictly within local process memory.\n" +
+                    text = "• All inference runs strictly within local device RAM.\n" +
                            "• Zero network requests or telemetry emitted during generation.\n" +
                            "• Fully verified for complete Airplane Mode operation.\n" +
                            "• Models are stored in Android app private sandbox directory.",
@@ -453,7 +464,7 @@ fun BenchmarkScreen(
 }
 
 @Composable
-fun BenchmarkResultView(
+fun ClaudeBenchmarkResultView(
     result: BenchmarkResult,
     onRerun: () -> Unit
 ) {
@@ -473,18 +484,18 @@ fun BenchmarkResultView(
                 text = "Stress Test Complete",
                 style = MaterialTheme.typography.labelMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = SuccessGreen
+                    color = WarmSuccessGreen
                 )
             )
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = ElectricCyan.copy(alpha = 0.2f)
+                color = ClaudeCoral.copy(alpha = 0.2f)
             ) {
                 Text(
                     text = result.performanceRating,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = ElectricCyan,
+                        color = ClaudeCoral,
                         fontWeight = FontWeight.Bold
                     )
                 )
@@ -493,7 +504,6 @@ fun BenchmarkResultView(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Big speed metric
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -503,7 +513,7 @@ fun BenchmarkResultView(
                 text = "${result.tokensPerSecond}",
                 style = MaterialTheme.typography.displayMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    color = ElectricCyan
+                    color = ClaudeCoral
                 )
             )
             Spacer(modifier = Modifier.width(6.dp))
@@ -519,15 +529,14 @@ fun BenchmarkResultView(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Detail stats
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            BenchmarkStatCol(label = "Latency (TTFT)", value = "${result.timeToFirstTokenMs} ms")
-            BenchmarkStatCol(label = "Total Latency", value = "${"%.1f".format(result.totalDurationMs / 1000f)} s")
-            BenchmarkStatCol(label = "Peak Memory", value = "${result.peakRamMb} MB")
-            BenchmarkStatCol(label = "Hardware", value = result.computeBackend.take(7))
+            ClaudeBenchmarkStatCol(label = "Latency (TTFT)", value = "${result.timeToFirstTokenMs} ms")
+            ClaudeBenchmarkStatCol(label = "Total Latency", value = "${"%.1f".format(result.totalDurationMs / 1000f)} s")
+            ClaudeBenchmarkStatCol(label = "Peak Memory", value = "${result.peakRamMb} MB")
+            ClaudeBenchmarkStatCol(label = "Hardware", value = result.computeBackend.take(7))
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -535,6 +544,7 @@ fun BenchmarkResultView(
         Button(
             onClick = onRerun,
             shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = ClaudeCoral),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("rerun_benchmark_button")
@@ -547,7 +557,7 @@ fun BenchmarkResultView(
 }
 
 @Composable
-fun BenchmarkStatCol(label: String, value: String) {
+fun ClaudeBenchmarkStatCol(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
