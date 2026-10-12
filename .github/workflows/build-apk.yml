@@ -74,37 +74,8 @@ jobs:
           # 4. Ensure google-services.json exists across all target lookup locations
           if [ ! -f app/google-services.json ]; then
             echo "Generating fallback google-services.json..."
-            cat << 'EOF' > app/google-services.json
-{
-  "project_info": {
-    "project_number": "123456789012",
-    "project_id": "synapse-local-app",
-    "storage_bucket": "synapse-local-app.appspot.com"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:123456789012:android:abcdef0123456789",
-        "android_client_info": {
-          "package_name": "com.aistudio.edgellm.vrmqpt"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "dummy_api_key"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    }
-  ],
-  "configuration_version": "1"
-}
-EOF
+            mkdir -p app
+            echo '{"project_info":{"project_number":"123456789012","project_id":"synapse-local-app","storage_bucket":"synapse-local-app.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:123456789012:android:abcdef0123456789","android_client_info":{"package_name":"com.aistudio.edgellm.vrmqpt"}},"oauth_client":[],"api_key":[{"current_key":"dummy_api_key"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > app/google-services.json
           fi
 
           mkdir -p app/src/debug app/src/main
