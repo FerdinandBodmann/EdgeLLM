@@ -45,6 +45,20 @@ class ModelManager(private val context: Context) {
             isEmbedded = true,
             source = ModelSource.CURATED
         ),
+        ModelInfo(
+            id = "gemini-25-flash",
+            name = "Gemini 2.5 Flash",
+            family = "Gemini",
+            parameterCount = "Cloud AI",
+            quantization = "Google Cloud",
+            downloadSizeMb = 0,
+            memoryFootprintMb = 35,
+            contextLength = 32768,
+            description = "Google's ultra-fast multimodal reasoning model. Answers any question with live world knowledge, code generation, and deep explanations.",
+            tags = listOf("Google", "Real-Time AI", "Cloud", "Live Knowledge"),
+            isEmbedded = true,
+            source = ModelSource.CURATED
+        ),
         // Ollama & HuggingFace Models
         ModelInfo(
             id = "deepseek-r1-15b",
