@@ -2,13 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
-      - master
   pull_request:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 concurrency:
@@ -24,17 +18,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
-          cache: 'gradle'
+
+      - name: Accept Android SDK Licenses
+        run: |
+          # Ensure Android SDK licenses are accepted
+          if command -v sdkmanager >/dev/null 2>&1; then
+            yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          fi
 
       - name: Make Gradlew Executable
         run: chmod +x gradlew
 
-      - name: Prepare Environment and Keystore
+      - name: Prepare Secrets, Keystore & Google Services
         run: |
           # 1. Ensure .env exists for Secrets Gradle Plugin
           if [ -f .env.example ] && [ ! -f .env ]; then
@@ -45,13 +45,14 @@ jobs:
 
           # 2. Decode debug.keystore from base64 if present
           if [ -f debug.keystore.base64 ]; then
-            echo "Attempting to decode debug.keystore.base64..."
+            echo "Decoding debug.keystore.base64..."
             base64 -d debug.keystore.base64 > debug.keystore 2>/dev/null || base64 --decode debug.keystore.base64 > debug.keystore 2>/dev/null || true
           fi
 
-          # 3. Generate debug.keystore if missing or empty (matching debugConfig alias and passwords)
-          if [ ! -s debug.keystore ]; then
-            echo "debug.keystore missing or empty. Generating with keytool..."
+          # 3. Validate debug.keystore with keytool; generate fresh if missing or invalid
+          if ! keytool -list -keystore debug.keystore -storepass android >/dev/null 2>&1; then
+            echo "Keystore is missing or invalid. Generating a fresh debug.keystore..."
+            rm -f debug.keystore
             keytool -genkeypair -v \
               -keystore debug.keystore \
               -alias androiddebugkey \
@@ -61,12 +62,18 @@ jobs:
               -storepass android \
               -keypass android \
               -dname "CN=Android Debug,O=Android,C=US"
+          else
+            echo "Valid debug.keystore confirmed."
           fi
 
-          # 4. Ensure minimal google-services.json exists for Google Services Gradle plugin
+          # Replicate to standard lookup paths (root, app/, and user home)
+          mkdir -p ~/.android app
+          cp debug.keystore ~/.android/debug.keystore || true
+          cp debug.keystore app/debug.keystore || true
+
+          # 4. Ensure google-services.json exists across all target lookup locations
           if [ ! -f app/google-services.json ]; then
-            echo "Creating fallback app/google-services.json..."
-            mkdir -p app
+            echo "Generating fallback google-services.json..."
             cat << 'EOF' > app/google-services.json
 {
   "project_info": {
@@ -100,14 +107,19 @@ jobs:
 EOF
           fi
 
-          echo "Verifying build prerequisites:"
+          mkdir -p app/src/debug app/src/main
+          cp app/google-services.json app/src/google-services.json || true
+          cp app/google-services.json app/src/debug/google-services.json || true
+          cp app/google-services.json app/src/main/google-services.json || true
+
+          echo "Prerequisites verified:"
           ls -la debug.keystore app/google-services.json
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Compile Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
