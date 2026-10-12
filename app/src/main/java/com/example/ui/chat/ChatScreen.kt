@@ -9,19 +9,15 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,8 +52,6 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -84,33 +78,40 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.R
 import com.example.data.MessageEntity
 import com.example.ui.MainViewModel
-import com.example.ui.theme.ClaudeAmberWheat
-import com.example.ui.theme.ClaudeCoral
-import com.example.ui.theme.ClaudeCoralLight
-import com.example.ui.theme.ClaudeOliveSage
+import com.example.ui.theme.GeminiBlue
+import com.example.ui.theme.GeminiCodeBlockBackground
+import com.example.ui.theme.GeminiDarkBackground
+import com.example.ui.theme.GeminiDarkBorder
+import com.example.ui.theme.GeminiDarkSurface
+import com.example.ui.theme.GeminiDarkSurfaceElevated
+import com.example.ui.theme.GeminiDarkSurfaceHighlight
+import com.example.ui.theme.GeminiErrorRed
+import com.example.ui.theme.GeminiLightBlue
+import com.example.ui.theme.GeminiPurple
+import com.example.ui.theme.GeminiSuccessGreen
+import com.example.ui.theme.GeminiTextPrimary
+import com.example.ui.theme.GeminiTextSecondary
+import com.example.ui.theme.GeminiTextTertiary
+import com.example.ui.theme.GeminiUserBubble
+import com.example.ui.theme.GeminiWhite
 import com.example.ui.theme.JetBrainsMono
-import com.example.ui.theme.WarmErrorRed
-import com.example.ui.theme.WarmSuccessGreen
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     viewModel: MainViewModel,
@@ -138,101 +139,63 @@ fun ChatScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .imePadding()
+            .background(GeminiDarkBackground)
     ) {
-        // Redesigned Top Bar with Direct Model Selector
+        // Minimalist Claude Top App Bar
         Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-            )
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding(),
+            color = GeminiDarkBackground,
+            tonalElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Left Brand & Interactive Active Model Switcher
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f, fill = false)
+                // Left: Active Model Selector Dropdown Pill
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = GeminiDarkSurface,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        GeminiDarkBorder.copy(alpha = 0.6f)
+                    ),
+                    modifier = Modifier
+                        .clickable { showModelPickerDialog = true }
+                        .testTag("model_picker_trigger")
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = ClaudeCoral.copy(alpha = 0.15f),
-                        modifier = Modifier.size(32.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                tint = ClaudeCoral,
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Synapse",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            letterSpacing = 0.3.sp
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = GeminiBlue,
+                            modifier = Modifier.size(15.dp)
                         )
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Quick Model Switcher Pill
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            ClaudeCoral.copy(alpha = 0.35f)
-                        ),
-                        modifier = Modifier
-                            .clickable { showModelPickerDialog = true }
-                            .testTag("model_picker_trigger")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isStreaming) ClaudeCoral else WarmSuccessGreen)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = activeModel.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                color = GeminiWhite,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.5.sp
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = activeModel.name,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = ClaudeCoral,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 11.sp
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Icon(
-                                imageVector = Icons.Default.KeyboardArrowDown,
-                                contentDescription = "Switch model",
-                                tint = ClaudeCoral,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Select model",
+                            tint = GeminiTextTertiary,
+                            modifier = Modifier.size(15.dp)
+                        )
                     }
                 }
 
@@ -241,14 +204,14 @@ fun ChatScreen(
                     IconButton(
                         onClick = { viewModel.createNewChat() },
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .testTag("new_chat_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "New Conversation",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
+                            contentDescription = "New chat",
+                            tint = GeminiTextPrimary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -256,28 +219,30 @@ fun ChatScreen(
                         IconButton(
                             onClick = { showMenu = true },
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(38.dp)
                                 .testTag("chat_menu_button")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
                                 contentDescription = "Menu",
-                                tint = MaterialTheme.colorScheme.onSurface,
+                                tint = GeminiTextPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
 
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(GeminiDarkSurface)
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Clear Conversation") },
+                                text = { Text("Clear chat", color = GeminiErrorRed) },
                                 leadingIcon = {
                                     Icon(
                                         Icons.Default.Delete,
                                         contentDescription = null,
-                                        tint = WarmErrorRed
+                                        tint = GeminiErrorRed,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 },
                                 onClick = {
@@ -287,12 +252,13 @@ fun ChatScreen(
                                 modifier = Modifier.testTag("clear_chat_menu_item")
                             )
                             DropdownMenuItem(
-                                text = { Text("Switch AI Model") },
+                                text = { Text("Switch AI model", color = GeminiTextPrimary) },
                                 leadingIcon = {
                                     Icon(
                                         Icons.Default.Psychology,
                                         contentDescription = null,
-                                        tint = ClaudeCoral
+                                        tint = GeminiBlue,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 },
                                 onClick = {
@@ -306,61 +272,59 @@ fun ChatScreen(
             }
         }
 
-        // Persona Selection Capsule Row
+        // Persona Selection Chips in Gemini minimalist dark style
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             viewModel.systemPersonas.forEachIndexed { index, (name, _) ->
-                FilterChip(
-                    selected = (selectedPersonaIndex == index),
-                    onClick = { viewModel.selectPersona(index) },
-                    label = {
-                        Text(
-                            name,
-                            fontSize = 11.5.sp,
-                            fontWeight = if (selectedPersonaIndex == index) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = ClaudeCoral.copy(alpha = 0.15f),
-                        selectedLabelColor = ClaudeCoral,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true,
-                        selected = (selectedPersonaIndex == index),
-                        borderColor = if (selectedPersonaIndex == index) ClaudeCoral else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                    ),
+                val isSelected = selectedPersonaIndex == index
+                Surface(
                     shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.testTag("persona_chip_$index")
-                )
+                    color = if (isSelected) GeminiDarkSurfaceHighlight else GeminiDarkSurface,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isSelected) GeminiBlue.copy(alpha = 0.5f) else GeminiDarkBorder.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .clickable { viewModel.selectPersona(index) }
+                        .testTag("persona_chip_$index")
+                ) {
+                    Text(
+                        text = name,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) GeminiWhite else GeminiTextSecondary
+                        )
+                    )
+                }
             }
         }
 
-        // Streaming progress bar
+        // Subtle streaming progress indicator line
         AnimatedVisibility(visible = isStreaming) {
             LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.5.dp),
-                color = ClaudeCoral,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    .height(2.dp),
+                color = GeminiBlue,
+                trackColor = GeminiDarkSurface
             )
         }
 
-        // Messages List or Redesigned Hero Empty State
+        // Chat Conversation List or Gemini Empty State
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
         ) {
             if (messages.isEmpty()) {
-                ClaudeEmptyPlaceholder(
+                ClaudeEmptyState(
                     activeModelName = activeModel.name,
                     onPromptSelected = { prompt ->
                         viewModel.promptInput.value = prompt
@@ -372,17 +336,17 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 14.dp),
-                    contentPadding = PaddingValues(top = 10.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
-                        ClaudeMessageRow(
+                        GeminiMessageItem(
                             message = message,
                             isStreamingThis = isStreaming && (message == messages.lastOrNull()) && message.role == "assistant",
                             onCopy = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("Synapse Response", message.content))
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Response", message.content))
                                 Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                             },
                             onDelete = {
@@ -393,263 +357,28 @@ fun ChatScreen(
                 }
             }
         }
-
-        // Redesigned Floating Bottom Composer Bar
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                // Unified Composer Card
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.background,
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = promptInput,
-                            onValueChange = { viewModel.promptInput.value = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("prompt_input_field"),
-                            placeholder = {
-                                Text(
-                                    "Ask anything, check weather, solve math, write code...",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                                        fontSize = 13.5.sp
-                                    )
-                                )
-                            },
-                            minLines = 1,
-                            maxLines = 6,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = 20.sp,
-                                fontFamily = if (promptInput.contains("```") || promptInput.startsWith("fun ") || promptInput.startsWith("def ")) JetBrainsMono else FontFamily.Default
-                            ),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color.Transparent,
-                                unfocusedBorderColor = Color.Transparent,
-                                disabledBorderColor = Color.Transparent
-                            )
-                        )
-
-                        // Action Tools inside the Composer
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 2.dp, bottom = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Left quick helpers
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                // One-Tap Insert Code Block Button
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                                    ),
-                                    modifier = Modifier
-                                        .clickable {
-                                            if (promptInput.isBlank()) {
-                                                viewModel.promptInput.value = "```kotlin\n// Write or paste code here\n\n```"
-                                            } else if (!promptInput.contains("```")) {
-                                                viewModel.promptInput.value = "```kotlin\n$promptInput\n```"
-                                            } else {
-                                                viewModel.promptInput.value = promptInput + "\n\n```kotlin\n\n```"
-                                            }
-                                        }
-                                        .testTag("insert_code_button")
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Code,
-                                            contentDescription = "Code snippet",
-                                            tint = ClaudeCoral,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = "{ } Code",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 10.5.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.width(6.dp))
-
-                                // Quick Weather Helper
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                                    ),
-                                    modifier = Modifier
-                                        .clickable {
-                                            viewModel.promptInput.value = "hows the weather in Haßloch Germany"
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.WbSunny,
-                                            contentDescription = "Weather prompt",
-                                            tint = ClaudeAmberWheat,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = "Weather",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 10.5.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        )
-                                    }
-                                }
-
-                                if (promptInput.isNotBlank()) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    IconButton(
-                                        onClick = { viewModel.promptInput.value = "" },
-                                        modifier = Modifier.size(26.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Clear,
-                                            contentDescription = "Clear input",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Right side: Send or Stop Button
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (isStreaming) {
-                                    IconButton(
-                                        onClick = { viewModel.stopGeneration() },
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(WarmErrorRed)
-                                            .testTag("stop_generation_button")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Stop,
-                                            contentDescription = "Stop",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                } else {
-                                    val canSend = promptInput.isNotBlank()
-                                    IconButton(
-                                        onClick = {
-                                            if (canSend) {
-                                                viewModel.sendMessage(promptInput)
-                                            }
-                                        },
-                                        enabled = canSend,
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                if (canSend) ClaudeCoral
-                                                else MaterialTheme.colorScheme.surfaceVariant
-                                            )
-                                            .testTag("send_button")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.Send,
-                                            contentDescription = "Send",
-                                            tint = if (canSend) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(17.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Subtitle Telemetry & Privacy notice
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 5.dp, start = 6.dp, end = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "100% On-Device Neural Compute • Zero Telemetry Leaves Phone",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    )
-                    Text(
-                        text = "Airplane-Mode Safe",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            color = ClaudeAmberWheat,
-                            fontWeight = FontWeight.Medium
-                        )
-                    )
-                }
-            }
-        }
     }
 
-    // Interactive Model Switcher Dialog
+    // Model Selector Dialog
     if (showModelPickerDialog) {
         AlertDialog(
             onDismissRequest = { showModelPickerDialog = false },
+            containerColor = GeminiDarkSurface,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Psychology,
+                        Icons.Default.AutoAwesome,
                         contentDescription = null,
-                        tint = ClaudeCoral,
+                        tint = GeminiBlue,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Select AI Model",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        "Choose model",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = GeminiWhite
+                        )
                     )
                 }
             },
@@ -660,21 +389,14 @@ fun ChatScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Choose an edge model to run locally on your device or Google Cloud AI:",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
-
                     allModels.forEach { item ->
                         val isSelected = item.info.id == activeModelId
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) ClaudeCoral.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isSelected) GeminiDarkSurfaceHighlight else GeminiDarkBackground,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isSelected) ClaudeCoral else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                if (isSelected) GeminiBlue.copy(alpha = 0.5f) else GeminiDarkBorder.copy(alpha = 0.4f)
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -686,7 +408,7 @@ fun ChatScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(10.dp),
+                                    .padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
@@ -695,31 +417,34 @@ fun ChatScreen(
                                         viewModel.modelManager.setActiveModel(item.info.id)
                                         showModelPickerDialog = false
                                     },
-                                    colors = RadioButtonDefaults.colors(selectedColor = ClaudeCoral)
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = GeminiBlue,
+                                        unselectedColor = GeminiTextTertiary
+                                    )
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = item.info.name,
                                             style = MaterialTheme.typography.labelLarge.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = GeminiWhite
                                             )
                                         )
                                         if (item.info.isEmbedded) {
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Surface(
                                                 shape = RoundedCornerShape(4.dp),
-                                                color = ClaudeCoral.copy(alpha = 0.15f)
+                                                color = GeminiDarkSurfaceHighlight
                                             ) {
                                                 Text(
-                                                    text = if (item.info.family == "Gemini") "Cloud AI" else "Embedded",
-                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                                    text = if (item.info.family == "Gemini") "Cloud" else "On-Device",
+                                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                                     style = MaterialTheme.typography.labelSmall.copy(
-                                                        color = ClaudeCoral,
-                                                        fontSize = 9.sp,
-                                                        fontWeight = FontWeight.Bold
+                                                        color = GeminiBlue,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Medium
                                                     )
                                                 )
                                             }
@@ -728,8 +453,8 @@ fun ChatScreen(
                                     Text(
                                         text = "${item.info.parameterCount} • ${item.info.quantization}",
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            fontSize = 11.5.sp,
+                                            color = GeminiTextTertiary
                                         )
                                     )
                                 }
@@ -740,15 +465,20 @@ fun ChatScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showModelPickerDialog = false }) {
-                    Text("Close", color = ClaudeCoral)
+                    Text("Close", color = GeminiBlue)
                 }
             }
         )
     }
 }
 
+/**
+ * Clean Gemini Message Item:
+ * - User: Clean dark rounded bubble on the right
+ * - Gemini: Uncontained, spacious text directly on the dark canvas with sparkle logo
+ */
 @Composable
-fun ClaudeMessageRow(
+fun GeminiMessageItem(
     message: MessageEntity,
     isStreamingThis: Boolean,
     onCopy: () -> Unit,
@@ -757,125 +487,151 @@ fun ClaudeMessageRow(
     val isUser = message.role == "user"
 
     if (isUser) {
-        // User message bubble in warm container
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
             Surface(
-                shape = RoundedCornerShape(topStart = 18.dp, topEnd = 4.dp, bottomStart = 18.dp, bottomEnd = 18.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                ),
-                modifier = Modifier.widthIn(max = 320.dp)
+                shape = RoundedCornerShape(20.dp),
+                color = GeminiUserBubble,
+                modifier = Modifier.widthIn(max = 330.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    ClaudeRenderFormattedContent(
-                        text = message.content,
-                        isStreamingThis = false
-                    )
-                }
+                Text(
+                    text = message.content,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = GeminiWhite,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
             }
         }
     } else {
-        // Assistant message: editorial, clean with asterisk logo like Claude
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
+        // Gemini Response: Spacious, elegant open canvas
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp, bottom = 8.dp)
         ) {
-            Surface(
-                shape = CircleShape,
-                color = ClaudeCoral.copy(alpha = 0.15f),
-                modifier = Modifier
-                    .size(28.dp)
-                    .padding(top = 2.dp)
+            // Header with Gemini Sparkle
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 8.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = ClaudeCoral,
-                        modifier = Modifier.size(15.dp)
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = GeminiBlue,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = message.modelName.ifEmpty { "Synapse" },
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = GeminiWhite,
+                        fontSize = 13.sp
+                    )
+                )
+
+                if (message.tokensPerSec > 0f) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "• ${message.tokensPerSec} tok/s",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = GeminiTextTertiary,
+                            fontSize = 11.sp
+                        )
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            SelectionContainer {
+                val contentToRender = if (message.content.isEmpty() && isStreamingThis) {
+                    "Thinking..."
+                } else {
+                    message.content
+                }
+                GeminiFormattedContent(
+                    text = contentToRender,
+                    isStreamingThis = isStreamingThis
+                )
+            }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Action row: Copy, Delete, Telemetry
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = message.modelName.ifEmpty { "Synapse" },
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    )
-
-                    if (message.tokensPerSec > 0f) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = ClaudeCoral.copy(alpha = 0.1f)
-                        ) {
-                            Text(
-                                text = "${message.tokensPerSec} tok/s",
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = ClaudeCoral,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    if (message.timeToFirstTokenMs > 0L) {
+                        Text(
+                            text = "${message.timeToFirstTokenMs}ms TTFT",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = GeminiTextTertiary,
+                                fontSize = 11.sp
                             )
-                        }
+                        )
+                    }
+                    if (message.tokensCount > 0) {
+                        Text(
+                            text = "• ${message.tokensCount} tokens",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = GeminiTextTertiary,
+                                fontSize = 11.sp
+                            )
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                SelectionContainer {
-                    val contentToRender = if (message.content.isEmpty() && isStreamingThis) {
-                        "Reasoning..."
-                    } else {
-                        message.content
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onCopy,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy",
+                            tint = GeminiTextTertiary,
+                            modifier = Modifier.size(15.dp)
+                        )
                     }
-                    ClaudeRenderFormattedContent(
-                        text = contentToRender,
-                        isStreamingThis = isStreamingThis
-                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = GeminiTextTertiary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                ClaudeTelemetryRow(
-                    tokensCount = message.tokensCount,
-                    tokensPerSec = message.tokensPerSec,
-                    ttftMs = message.timeToFirstTokenMs,
-                    onCopy = onCopy,
-                    onDelete = onDelete
-                )
             }
         }
     }
 }
 
 /**
- * Editorial Markdown & Code formatter with collapsible DeepSeek <think> reasoning
+ * Formats Gemini responses: Headings, Code fences, Lists, DeepSeek thinking cards
  */
 @Composable
-fun ClaudeRenderFormattedContent(
+fun GeminiFormattedContent(
     text: String,
     isStreamingThis: Boolean
 ) {
     var rawText = text
     var thoughtContent: String? = null
 
-    // Extract DeepSeek reasoning tokens <think>...</think>
     if (rawText.contains("<think>")) {
         val thinkStart = rawText.indexOf("<think>")
         val thinkEnd = rawText.indexOf("</think>")
@@ -883,29 +639,24 @@ fun ClaudeRenderFormattedContent(
             thoughtContent = rawText.substring(thinkStart + 7, thinkEnd).trim()
             rawText = rawText.substring(thinkEnd + 8).trimStart()
         } else {
-            // Still streaming thinking phase
             thoughtContent = rawText.substring(thinkStart + 7).trim()
             rawText = ""
         }
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // DeepSeek Chain-of-Thought collapsible card
         if (!thoughtContent.isNullOrBlank()) {
             var isThoughtExpanded by remember { mutableStateOf(isStreamingThis) }
 
             Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    ClaudeAmberWheat.copy(alpha = 0.4f)
-                ),
+                shape = RoundedCornerShape(12.dp),
+                color = GeminiDarkSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, GeminiDarkBorder),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 10.dp)
+                    .padding(bottom = 12.dp)
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(12.dp)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -917,24 +668,24 @@ fun ClaudeRenderFormattedContent(
                             Icon(
                                 imageVector = Icons.Default.Psychology,
                                 contentDescription = null,
-                                tint = ClaudeAmberWheat,
-                                modifier = Modifier.size(15.dp)
+                                tint = GeminiBlue,
+                                modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (isStreamingThis && rawText.isEmpty()) "Thinking..." else "Reasoning Process",
+                                text = "Chain of thought",
                                 style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = ClaudeAmberWheat,
-                                    fontSize = 11.5.sp
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = GeminiBlue,
+                                    fontSize = 12.sp
                                 )
                             )
                         }
 
                         Icon(
                             imageVector = if (isThoughtExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Toggle thought",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            contentDescription = null,
+                            tint = GeminiTextTertiary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -947,10 +698,10 @@ fun ClaudeRenderFormattedContent(
                         Text(
                             text = thoughtContent,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = GeminiTextSecondary,
                                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                                fontSize = 11.5.sp,
-                                lineHeight = 17.sp
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp
                             ),
                             modifier = Modifier.padding(top = 8.dp)
                         )
@@ -960,18 +711,17 @@ fun ClaudeRenderFormattedContent(
         }
 
         if (rawText.isNotEmpty()) {
-            // Parse for Markdown code fences ```language\n...```
             val parts = remember(rawText) { splitCodeBlocks(rawText) }
 
             parts.forEach { part ->
                 if (part.isCode) {
-                    ClaudeCodeBlock(
+                    GeminiCodeBlock(
                         code = part.content,
                         language = part.language,
                         isStreaming = isStreamingThis
                     )
                 } else {
-                    ClaudeRenderRichText(
+                    GeminiRichText(
                         content = part.content,
                         showCursor = isStreamingThis
                     )
@@ -981,29 +731,28 @@ fun ClaudeRenderFormattedContent(
     }
 }
 
-data class ContentPart(val content: String, val isCode: Boolean, val language: String = "")
+data class CodePart(val content: String, val isCode: Boolean, val language: String = "")
 
-private fun splitCodeBlocks(raw: String): List<ContentPart> {
-    val result = mutableListOf<ContentPart>()
+private fun splitCodeBlocks(raw: String): List<CodePart> {
+    val result = mutableListOf<CodePart>()
     var cursor = 0
 
     while (cursor < raw.length) {
         val fenceStart = raw.indexOf("```", cursor)
         if (fenceStart == -1) {
             val remaining = raw.substring(cursor)
-            if (remaining.isNotEmpty()) result.add(ContentPart(remaining, false))
+            if (remaining.isNotEmpty()) result.add(CodePart(remaining, false))
             break
         }
 
         if (fenceStart > cursor) {
-            result.add(ContentPart(raw.substring(cursor, fenceStart), false))
+            result.add(CodePart(raw.substring(cursor, fenceStart), false))
         }
 
         val langEnd = raw.indexOf('\n', fenceStart + 3)
         if (langEnd == -1) {
-            // Code block not finished yet during streaming
             val code = raw.substring(fenceStart + 3)
-            result.add(ContentPart(code, true, "code"))
+            result.add(CodePart(code, true, "code"))
             break
         }
 
@@ -1011,13 +760,12 @@ private fun splitCodeBlocks(raw: String): List<ContentPart> {
         val fenceEnd = raw.indexOf("```", langEnd + 1)
 
         if (fenceEnd == -1) {
-            // Streaming in-progress code block
             val code = raw.substring(langEnd + 1)
-            result.add(ContentPart(code, true, language))
+            result.add(CodePart(code, true, language))
             break
         } else {
             val code = raw.substring(langEnd + 1, fenceEnd)
-            result.add(ContentPart(code, true, language))
+            result.add(CodePart(code, true, language))
             cursor = fenceEnd + 3
         }
     }
@@ -1025,7 +773,7 @@ private fun splitCodeBlocks(raw: String): List<ContentPart> {
 }
 
 @Composable
-fun ClaudeCodeBlock(
+fun GeminiCodeBlock(
     code: String,
     language: String,
     isStreaming: Boolean
@@ -1034,20 +782,19 @@ fun ClaudeCodeBlock(
     var copied by remember { mutableStateOf(false) }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF181716), // Dark warm code surface
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38332D)),
+        shape = RoundedCornerShape(14.dp),
+        color = GeminiCodeBlockBackground,
+        border = androidx.compose.foundation.BorderStroke(1.dp, GeminiDarkBorder.copy(alpha = 0.5f)),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .padding(vertical = 8.dp)
     ) {
         Column {
-            // Header bar with language title & Copy button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF221F1C))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .background(GeminiDarkSurface)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1055,9 +802,9 @@ fun ClaudeCodeBlock(
                     text = language.uppercase(),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = JetBrainsMono,
-                        fontWeight = FontWeight.Bold,
-                        color = ClaudeAmberWheat,
-                        fontSize = 10.5.sp
+                        fontWeight = FontWeight.SemiBold,
+                        color = GeminiTextSecondary,
+                        fontSize = 11.sp
                     )
                 )
 
@@ -1075,33 +822,32 @@ fun ClaudeCodeBlock(
                     Icon(
                         imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
                         contentDescription = "Copy code",
-                        tint = if (copied) WarmSuccessGreen else Color(0xFFB5ADA2),
+                        tint = if (copied) GeminiSuccessGreen else GeminiTextTertiary,
                         modifier = Modifier.size(13.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (copied) "Copied" else "Copy",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            color = if (copied) WarmSuccessGreen else Color(0xFFB5ADA2),
-                            fontSize = 11.sp
+                            color = if (copied) GeminiSuccessGreen else GeminiTextTertiary,
+                            fontSize = 11.5.sp
                         )
                     )
                 }
             }
 
-            // Syntax-highlighted code block with horizontal scroll
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(12.dp)
+                    .padding(14.dp)
             ) {
                 Text(
-                    text = highlightSyntax(code, isStreaming),
+                    text = highlightCode(code, isStreaming),
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontFamily = JetBrainsMono,
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp
                     )
                 )
             }
@@ -1109,14 +855,14 @@ fun ClaudeCodeBlock(
     }
 }
 
-private fun highlightSyntax(code: String, isStreaming: Boolean): AnnotatedString {
+private fun highlightCode(code: String, isStreaming: Boolean): AnnotatedString {
     return buildAnnotatedString {
         val lines = code.lines()
-        val keywordColor = Color(0xFFE08365) // Coral terracotta
-        val stringColor = Color(0xFF98C379)  // Soft sage green
-        val commentColor = Color(0xFF8A8275) // Muted warm gray
-        val numberColor = Color(0xFFE5C07B)  // Soft warm gold
-        val defaultColor = Color(0xFFF3EEE6) // Warm paper ivory
+        val keywordColor = Color(0xFFA8C7FA) // Gemini Blue
+        val stringColor = Color(0xFFC4EED0)  // Soft Mint
+        val commentColor = Color(0xFF757775) // Muted Grey
+        val numberColor = Color(0xFFFFD563)  // Soft Warm Gold
+        val defaultColor = Color(0xFFE3E3E3) // Crisp White
 
         val keywords = setOf(
             "val", "var", "fun", "class", "object", "interface", "def", "return",
@@ -1208,7 +954,7 @@ private fun highlightSyntax(code: String, isStreaming: Boolean): AnnotatedString
         }
 
         if (isStreaming) {
-            withStyle(SpanStyle(color = ClaudeCoral, fontWeight = FontWeight.Bold)) {
+            withStyle(SpanStyle(color = GeminiBlue, fontWeight = FontWeight.Bold)) {
                 append(" ▌")
             }
         }
@@ -1216,7 +962,7 @@ private fun highlightSyntax(code: String, isStreaming: Boolean): AnnotatedString
 }
 
 @Composable
-fun ClaudeRenderRichText(
+fun GeminiRichText(
     content: String,
     showCursor: Boolean
 ) {
@@ -1233,10 +979,10 @@ fun ClaudeRenderRichText(
                         text = line.removePrefix("### ").trim(),
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 15.sp
+                            color = GeminiWhite,
+                            fontSize = 15.5.sp
                         ),
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
                     )
                 }
                 line.startsWith("## ") -> {
@@ -1244,10 +990,10 @@ fun ClaudeRenderRichText(
                         text = line.removePrefix("## ").trim(),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 16.5.sp
+                            color = GeminiWhite,
+                            fontSize = 17.5.sp
                         ),
-                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
+                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
                     )
                 }
                 line.startsWith("# ") -> {
@@ -1255,34 +1001,35 @@ fun ClaudeRenderRichText(
                         text = line.removePrefix("# ").trim(),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 18.5.sp
+                            color = GeminiWhite,
+                            fontSize = 19.5.sp
                         ),
-                        modifier = Modifier.padding(top = 12.dp, bottom = 6.dp)
+                        modifier = Modifier.padding(top = 14.dp, bottom = 6.dp)
                     )
                 }
                 line.startsWith("• ") || line.startsWith("* ") || line.startsWith("- ") -> {
                     val bulletText = line.substring(2).trim()
                     Row(
-                        modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 2.dp),
+                        modifier = Modifier.padding(start = 4.dp, top = 3.dp, bottom = 3.dp),
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
                             text = "•",
                             style = MaterialTheme.typography.bodyMedium.copy(
-                                color = ClaudeCoral,
-                                fontWeight = FontWeight.Bold
+                                color = GeminiBlue,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
                             )
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        ClaudeInlineText(
+                        Spacer(modifier = Modifier.width(8.dp))
+                        GeminiInlineText(
                             text = bulletText,
                             appendCursor = showCursor && isLastLine
                         )
                     }
                 }
                 line.isNotBlank() -> {
-                    ClaudeInlineText(
+                    GeminiInlineText(
                         text = line,
                         appendCursor = showCursor && isLastLine,
                         modifier = Modifier.padding(vertical = 2.dp)
@@ -1297,7 +1044,7 @@ fun ClaudeRenderRichText(
 }
 
 @Composable
-fun ClaudeInlineText(
+fun GeminiInlineText(
     text: String,
     appendCursor: Boolean,
     modifier: Modifier = Modifier
@@ -1315,9 +1062,9 @@ fun ClaudeInlineText(
                         withStyle(
                             SpanStyle(
                                 fontFamily = JetBrainsMono,
-                                background = Color(0x22C96846),
-                                color = Color(0xFFE08365),
-                                fontSize = 12.sp
+                                background = GeminiDarkSurfaceHighlight,
+                                color = GeminiBlue,
+                                fontSize = 13.sp
                             )
                         ) {
                             append(" $inlineCode ")
@@ -1331,7 +1078,7 @@ fun ClaudeInlineText(
                     val endBold = text.indexOf("**", i + 2)
                     if (endBold != -1) {
                         val boldText = text.substring(i + 2, endBold)
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = GeminiWhite)) {
                             append(boldText)
                         }
                         i = endBold + 2
@@ -1344,7 +1091,7 @@ fun ClaudeInlineText(
             }
 
             if (appendCursor) {
-                withStyle(SpanStyle(color = ClaudeCoral, fontWeight = FontWeight.Bold)) {
+                withStyle(SpanStyle(color = GeminiBlue, fontWeight = FontWeight.Bold)) {
                     append(" ▌")
                 }
             }
@@ -1354,125 +1101,20 @@ fun ClaudeInlineText(
     Text(
         text = annotated,
         style = MaterialTheme.typography.bodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 22.sp
+            color = GeminiTextPrimary,
+            fontSize = 15.sp,
+            lineHeight = 23.sp
         ),
         modifier = modifier
     )
 }
 
-@Composable
-fun ClaudeTelemetryRow(
-    tokensCount: Int,
-    tokensPerSec: Float,
-    ttftMs: Long,
-    onCopy: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            if (tokensPerSec > 0f) {
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = null,
-                            tint = ClaudeCoral,
-                            modifier = Modifier.size(11.dp)
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = "${tokensPerSec} tok/s",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-                    }
-                }
-            }
-
-            if (tokensCount > 0) {
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Text(
-                        text = "${tokensCount} tokens",
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
-                }
-            }
-
-            if (ttftMs > 0) {
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Text(
-                        text = "${ttftMs}ms TTFT",
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
-                }
-            }
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(
-                onClick = onCopy,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "Copy",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-        }
-    }
-}
-
 /**
- * Gorgeous Hero Studio Empty State with banner art and instant prompt cards
+ * Authentic Claude Warm Dark Empty State:
+ * Editorial greeting with Claude star icon + warm prompt cards
  */
 @Composable
-fun ClaudeEmptyPlaceholder(
+fun ClaudeEmptyState(
     activeModelName: String,
     onPromptSelected: (String) -> Unit
 ) {
@@ -1480,167 +1122,90 @@ fun ClaudeEmptyPlaceholder(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.Top
     ) {
-        // Hero Banner Art with neural synapses
-        Card(
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            border = androidx.compose.foundation.BorderStroke(1.dp, ClaudeCoral.copy(alpha = 0.3f)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 14.dp)
-        ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Image(
-                    painter = painterResource(id = R.drawable.img_synapse_hero),
-                    contentDescription = "Synapse Neural Art",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                )
+        Spacer(modifier = Modifier.height(12.dp))
 
-                // Overlay gradient with studio title
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            androidx.compose.ui.graphics.Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color(0xCC191816)
-                                )
-                            )
-                        )
-                        .padding(14.dp),
-                    contentAlignment = Alignment.BottomStart
-                ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(WarmSuccessGreen)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "ACTIVE: $activeModelName",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = ClaudeCoralLight,
-                                    fontSize = 10.5.sp,
-                                    letterSpacing = 0.5.sp
-                                )
-                            )
-                        }
-                        Text(
-                            text = "Local Edge Intelligence",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                fontSize = 16.sp
-                            )
-                        )
-                    }
-                }
+        // Claude Iconic Terracotta Star Icon
+        Surface(
+            shape = CircleShape,
+            color = GeminiDarkSurfaceHighlight,
+            border = androidx.compose.foundation.BorderStroke(1.dp, GeminiBlue.copy(alpha = 0.4f)),
+            modifier = Modifier.size(44.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = GeminiBlue,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
 
-        Text(
-            text = "What would you like to explore?",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        )
-
-        Spacer(modifier = Modifier.height(2.dp))
-
-        Text(
-            text = "Instant weather, calculations, programming, or factual deep-dives:",
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                fontSize = 12.sp
-            )
-        )
-
         Spacer(modifier = Modifier.height(14.dp))
 
-        // High-value Prompt Suggestion Cards (Including weather in Haßloch Germany!)
-        val suggestionCards = listOf(
-            Triple(
-                "🌤️ Weather in Haßloch, Germany",
-                "Queries live Open-Meteo API & regional forecast",
-                "hows the weather in haßloch germany"
-            ),
-            Triple(
-                "⚡ Fast Arithmetic",
-                "Solve: 25 * 14 or sqrt(144) or 15% of 250",
-                "what is 25 * 14"
-            ),
-            Triple(
-                "💻 Kotlin String Reversal",
-                "Write idiomatic reverse string with two pointers",
-                "Write a Kotlin function to reverse a string"
-            ),
-            Triple(
-                "🪐 How Photosynthesis Works",
-                "Chloroplast reactions, Calvin Cycle & chemical equations",
-                "Explain how photosynthesis works in detail"
-            ),
-            Triple(
-                "🇩🇪 Haßloch (Pfalz) Overview",
-                "Holiday Park, market test hub, and municipality facts",
-                "Tell me about Haßloch Germany and what it is known for"
+        Text(
+            text = "How can I help you today?",
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = GeminiWhite,
+                fontSize = 25.sp,
+                letterSpacing = (-0.3).sp
             )
         )
 
-        suggestionCards.forEach { (title, subtitle, prompt) ->
+        Text(
+            text = "Offline Edge LLM • Private & fast on-device",
+            style = MaterialTheme.typography.bodySmall.copy(
+                color = GeminiTextTertiary,
+                fontSize = 13.sp
+            ),
+            modifier = Modifier.padding(top = 4.dp)
+        )
+
+        Spacer(modifier = Modifier.height(22.dp))
+
+        // Clean Claude Prompt Cards
+        val prompts = listOf(
+            Pair("🌤️ Weather in Haßloch, Germany", "hows the weather in haßloch germany"),
+            Pair("⚡ Fast Math: 25 * 14 or sqrt(144)", "what is 25 * 14"),
+            Pair("💻 Reverse string in Kotlin", "Write a Kotlin function to reverse a string"),
+            Pair("🌱 How photosynthesis works", "Explain how photosynthesis works in detail")
+        )
+
+        prompts.forEach { (label, query) ->
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(16.dp),
+                color = GeminiDarkSurface,
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+                    GeminiDarkBorder.copy(alpha = 0.7f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-                    .clickable { onPromptSelected(prompt) }
+                    .padding(vertical = 5.dp)
+                    .clickable { onPromptSelected(query) }
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 13.5.sp
-                            )
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = GeminiWhite,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.5.sp
-                            )
-                        )
-                    }
-
+                    )
                     Icon(
                         imageVector = Icons.Default.AutoAwesome,
                         contentDescription = null,
-                        tint = ClaudeCoral,
+                        tint = GeminiBlue,
                         modifier = Modifier.size(16.dp)
                     )
                 }

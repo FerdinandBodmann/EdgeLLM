@@ -241,6 +241,74 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         )
                     }
+                } else if (activeModel.source == com.example.models.ModelSource.OLLAMA || activeModel.family == "Ollama") {
+                    val tag = if (activeModel.repoOrTag.isNotBlank()) {
+                        activeModel.repoOrTag.removePrefix("ollama:")
+                    } else {
+                        activeModel.id.removePrefix("ollama_")
+                    }
+                    val startTime = android.os.SystemClock.elapsedRealtime()
+                    var firstTokenTime = 0L
+                    var tokenCount = 0
+                    val accumulated = StringBuilder()
+
+                    try {
+                        com.example.services.OllamaService.streamChat(
+                            endpoint = modelManager.ollamaHostUrl.value,
+                            modelTag = tag,
+                            messages = history + ("user" to text),
+                            systemPrompt = _inferenceConfig.value.systemPrompt
+                        ).collect { chunk ->
+                            if (firstTokenTime == 0L) {
+                                firstTokenTime = android.os.SystemClock.elapsedRealtime()
+                            }
+                            accumulated.append(chunk)
+                            tokenCount++
+                            val now = android.os.SystemClock.elapsedRealtime()
+                            val elapsed = (now - firstTokenTime).coerceAtLeast(1L)
+                            val tps = (tokenCount.toFloat() / (elapsed / 1000f)).coerceAtLeast(0.1f)
+                            val telemetry = InferenceTelemetry(
+                                tokensGenerated = tokenCount,
+                                tokensPerSecond = Math.round(tps * 10f) / 10f,
+                                timeToFirstTokenMs = (firstTokenTime - startTime).coerceAtLeast(1L),
+                                totalDurationMs = now - startTime,
+                                ramAllocatedMb = 250,
+                                activeBackend = "Ollama Host (${modelManager.ollamaHostUrl.value})",
+                                modelName = activeModel.name
+                            )
+                            _currentTelemetry.value = telemetry
+                            chatDao.updateMessage(
+                                MessageEntity(
+                                    id = assistantMsgId,
+                                    chatId = chatId,
+                                    role = "assistant",
+                                    content = accumulated.toString(),
+                                    tokensCount = tokenCount,
+                                    tokensPerSec = telemetry.tokensPerSecond,
+                                    timeToFirstTokenMs = telemetry.timeToFirstTokenMs,
+                                    modelName = activeModel.name
+                                )
+                            )
+                        }
+                    } catch (ollamaErr: Exception) {
+                        val notice = "⚠️ **Could not connect to Ollama server at `${modelManager.ollamaHostUrl.value}`**\n\n" +
+                                "To run **${activeModel.name}** with real neural weights, ensure Ollama is running on your machine or local network (`ollama run $tag`).\n\n" +
+                                "• You can update the Ollama server IP in the Models tab.\n" +
+                                "• Or switch to **NanoLLM Edge Core** for native offline intelligence, or **Gemini 2.5 Flash** for cloud reasoning.\n\n" +
+                                "*Error details: ${ollamaErr.localizedMessage}*"
+                        chatDao.updateMessage(
+                            MessageEntity(
+                                id = assistantMsgId,
+                                chatId = chatId,
+                                role = "assistant",
+                                content = notice,
+                                tokensCount = 0,
+                                tokensPerSec = 0f,
+                                timeToFirstTokenMs = 0L,
+                                modelName = activeModel.name
+                            )
+                        )
+                    }
                 } else {
                     // Stream response token-by-token from On-Device Inference Engine (with live WeatherService & smart answering)
                     inferenceEngine.generateStream(

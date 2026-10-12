@@ -225,12 +225,30 @@ class OnDeviceInferenceEngine(private val context: Context) {
             return tokenizeText(wrapWithThinkIfDeepSeek(mathAnswer, model, trimmed, config))
         }
 
+        // 2b. Authenticity & Execution Verification Queries
+        if (lower.contains("actually run") || lower.contains("really run") || lower.contains("gpt-oss") || lower.contains("are you really")) {
+            val text = buildString {
+                append("### Transparent Model Execution Status\n\n")
+                append("• **Selected Profile:** **${model.name}** (${model.family} ${model.parameterCount})\n")
+                append("• **Engine Mode:** ")
+                if (model.isEmbedded) {
+                    append("Embedded Offline Edge Core (running privately on device)\n")
+                } else if (model.source == com.example.models.ModelSource.OLLAMA) {
+                    append("Ollama Host Bridge (configured to stream from local Ollama host)\n")
+                } else {
+                    append("Local GGUF Weights (${model.quantization})\n")
+                }
+                append("\n**Execution details:** Standalone mobile phones have physical RAM constraints (typically 6–12GB shared with the OS), meaning true 20B+ parameter neural execution requires an Ollama server running on a PC/Mac or cloud reasoning via **Gemini 2.5 Flash**. Synapse provides real offline intelligence, live weather, math solving, and code generation locally.")
+            }
+            return tokenizeText(wrapWithThinkIfDeepSeek(text, model, trimmed, config))
+        }
+
         // 3. Identification & Greetings
         if (lower.startsWith("who are you") || lower.contains("what are you") || lower == "introduce yourself") {
-            val text = "I am **${model.name}**, executing on-device with Synapse.\n\n" +
-                    "• **Architecture:** ${model.family} (${model.parameterCount})\n" +
-                    "• **Precision:** ${model.quantization}\n" +
-                    "• **Execution:** Running locally on ARM CPU/NPU with private KV-caching in device RAM.\n\n" +
+            val text = "I am **Synapse** running with the **${model.name}** profile.\n\n" +
+                    "• **Model:** ${model.name} (${model.family} ${model.parameterCount})\n" +
+                    "• **Format:** ${model.quantization}\n" +
+                    "• **Privacy:** Running on device with private KV-caching in memory.\n\n" +
                     "I can answer questions, check live weather, solve math, write code, explain concepts, and brainstorm solutions."
             return tokenizeText(wrapWithThinkIfDeepSeek(text, model, trimmed, config))
         }

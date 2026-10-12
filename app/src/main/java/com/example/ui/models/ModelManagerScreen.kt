@@ -340,10 +340,26 @@ fun ModelManagerScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(10.dp))
+                    val currentHost by viewModel.modelManager.ollamaHostUrl.collectAsState()
+                    var hostInput by remember { mutableStateOf(currentHost) }
+
+                    OutlinedTextField(
+                        value = hostInput,
+                        onValueChange = {
+                            hostInput = it
+                            viewModel.modelManager.updateOllamaHost(it)
+                        },
+                        label = { Text("Ollama Host Server (e.g. http://192.168.1.50:11434)") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("ollama_host_field"),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = ollamaTagInput,
                         onValueChange = { ollamaTagInput = it },
-                        label = { Text("e.g. deepseek-r1:1.5b, llama3.2:1b") },
+                        label = { Text("Model Tag (e.g. deepseek-r1:1.5b, llama3.2:1b, gpt-oss)") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("ollama_tag_input_field"),

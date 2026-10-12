@@ -1,6 +1,8 @@
 package com.example.models
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Environment
 import android.os.StatFs
@@ -9,17 +11,22 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
-import java.io.RandomAccessFile
+import java.util.concurrent.TimeUnit
 
 class ModelManager(private val context: Context) {
 
@@ -29,7 +36,38 @@ class ModelManager(private val context: Context) {
 
     private val sharedPrefs = context.getSharedPreferences("edgellm_prefs", Context.MODE_PRIVATE)
 
-    // Curated Edge Models
+    private val okHttpClient = OkHttpClient.Builder()
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
+        .build()
+
+    private val _downloadMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val downloadMessages: SharedFlow<String> = _downloadMessages.asSharedFlow()
+
+    // Configurable Ollama Host endpoint
+    val ollamaHostUrl = MutableStateFlow(
+        sharedPrefs.getString("ollama_host", "http://10.0.2.2:11434") ?: "http://10.0.2.2:11434"
+    )
+
+    fun updateOllamaHost(newHost: String) {
+        val trimmed = newHost.trim().trimEnd('/')
+        sharedPrefs.edit().putString("ollama_host", trimmed).apply()
+        ollamaHostUrl.value = trimmed
+    }
+
+    /**
+     * Checks if the device has an active internet connection.
+     */
+    fun isNetworkConnected(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    // Curated Edge Models with Real Hugging Face Direct GGUF Download URLs
     private val defaultCatalog = mutableListOf(
         ModelInfo(
             id = "nanollm-embedded",
@@ -59,22 +97,39 @@ class ModelManager(private val context: Context) {
             isEmbedded = true,
             source = ModelSource.CURATED
         ),
-        // Ollama & HuggingFace Models
         ModelInfo(
-            id = "deepseek-r1-15b",
-            name = "DeepSeek R1 Distill 1.5B",
-            family = "DeepSeek",
-            parameterCount = "1.5B",
+            id = "smollm2-135m",
+            name = "SmolLM2 135M Instruct",
+            family = "SmolLM",
+            parameterCount = "135M",
             quantization = "Q4_K_M (GGUF)",
-            downloadSizeMb = 1120,
-            memoryFootprintMb = 1450,
-            contextLength = 8192,
-            description = "DeepSeek's breakout reasoning model. Produces transparent step-by-step thinking tokens (<think>...</think>) before answering.",
-            tags = listOf("Ollama", "Reasoning", "Chain of Thought", "DeepSeek"),
+            downloadSizeMb = 92,
+            memoryFootprintMb = 140,
+            contextLength = 2048,
+            description = "Hugging Face's ultra-compact 135M parameter mobile edge model. Downloads quickly (~90MB) and operates efficiently on mobile.",
+            tags = listOf("Hugging Face", "Real Download", "Fast", "Mobile"),
             isEmbedded = false,
-            downloadUrl = "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
-            source = ModelSource.OLLAMA,
-            repoOrTag = "ollama:deepseek-r1:1.5b"
+            downloadUrl = "https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct-GGUF/resolve/main/smollm2-135m-instruct-q4_k_m.gguf",
+            filename = "smollm2-135m-instruct-q4_k_m.gguf",
+            source = ModelSource.HUGGING_FACE,
+            repoOrTag = "hf:HuggingFaceTB/SmolLM2-135M-Instruct-GGUF"
+        ),
+        ModelInfo(
+            id = "qwen25-05b",
+            name = "Qwen 2.5 0.5B Instruct",
+            family = "Qwen",
+            parameterCount = "0.5B",
+            quantization = "Q4_K_M (GGUF)",
+            downloadSizeMb = 395,
+            memoryFootprintMb = 510,
+            contextLength = 4096,
+            description = "Alibaba's specialized 0.5B instruction-tuned model. Multilingual and coding knowledge formatted as native GGUF.",
+            tags = listOf("Qwen", "Real Download", "Coding", "0.5B"),
+            isEmbedded = false,
+            downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+            filename = "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+            source = ModelSource.HUGGING_FACE,
+            repoOrTag = "hf:Qwen/Qwen2.5-0.5B-Instruct-GGUF"
         ),
         ModelInfo(
             id = "llama32-1b",
@@ -86,107 +141,44 @@ class ModelManager(private val context: Context) {
             memoryFootprintMb = 1100,
             contextLength = 8192,
             description = "Meta's official compact edge model. Built for on-device reasoning, summarization, and multilingual instruction following.",
-            tags = listOf("Meta", "Ollama", "Llama 3.2", "Mobile"),
+            tags = listOf("Meta", "Llama 3.2", "Mobile", "GGUF"),
             isEmbedded = false,
-            downloadUrl = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF",
-            source = ModelSource.OLLAMA,
-            repoOrTag = "ollama:llama3.2:1b"
+            downloadUrl = "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+            filename = "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+            source = ModelSource.HUGGING_FACE,
+            repoOrTag = "hf:bartowski/Llama-3.2-1B-Instruct-GGUF"
         ),
         ModelInfo(
-            id = "gemma-2-2b",
-            name = "Gemma 2 2B Instruct",
-            family = "Gemma",
-            parameterCount = "2.6B",
+            id = "deepseek-r1-15b",
+            name = "DeepSeek R1 Distill 1.5B",
+            family = "DeepSeek",
+            parameterCount = "1.5B",
             quantization = "Q4_K_M (GGUF)",
-            downloadSizeMb = 1420,
-            memoryFootprintMb = 1750,
+            downloadSizeMb = 1120,
+            memoryFootprintMb = 1450,
             contextLength = 8192,
-            description = "Google's open-weights model optimized for edge devices. Exceptional reasoning, mathematics, and instruction following.",
-            tags = listOf("Google", "High Accuracy", "Long Context", "Gemma 2"),
+            description = "DeepSeek's breakout reasoning model. Produces transparent step-by-step thinking tokens (<think>...</think>) before answering.",
+            tags = listOf("DeepSeek", "Reasoning", "Chain of Thought", "R1"),
             isEmbedded = false,
-            downloadUrl = "https://huggingface.co/google/gemma-2-2b-it-GGUF",
+            downloadUrl = "https://huggingface.co/bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
+            filename = "DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf",
             source = ModelSource.HUGGING_FACE,
-            repoOrTag = "hf:google/gemma-2-2b-it-GGUF"
+            repoOrTag = "hf:bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF"
         ),
         ModelInfo(
-            id = "smollm2-360m",
-            name = "SmolLM2 360M Instruct",
-            family = "SmolLM",
-            parameterCount = "360M",
-            quantization = "Q4_K_M (GGUF)",
-            downloadSizeMb = 245,
-            memoryFootprintMb = 340,
-            contextLength = 2048,
-            description = "HuggingFace's ultra-compact edge model. Runs at blazing speeds (30+ tok/s) on any mobile hardware.",
-            tags = listOf("Hugging Face", "Ultra Fast", "Low RAM", "Mobile"),
-            isEmbedded = false,
-            downloadUrl = "https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct-GGUF",
-            source = ModelSource.HUGGING_FACE,
-            repoOrTag = "hf:HuggingFaceTB/SmolLM2-360M-Instruct-GGUF"
-        ),
-        ModelInfo(
-            id = "qwen25-coder-05b",
-            name = "Qwen 2.5 Coder 0.5B",
-            family = "Qwen",
-            parameterCount = "0.5B",
-            quantization = "Q4_K_M (GGUF)",
-            downloadSizeMb = 390,
-            memoryFootprintMb = 510,
+            id = "ollama-connected-model",
+            name = "Ollama Local Engine",
+            family = "Ollama",
+            parameterCount = "Variable",
+            quantization = "Host Managed",
+            downloadSizeMb = 0,
+            memoryFootprintMb = 120,
             contextLength = 8192,
-            description = "Alibaba's specialized pocket coding model. Code completion, debugging, algorithms, and regex entirely offline.",
-            tags = listOf("Coding", "Ollama", "Python/Kotlin", "Qwen"),
-            isEmbedded = false,
-            downloadUrl = "https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF",
+            description = "Connects directly to your local Ollama server over Wi-Fi/LAN (e.g. gpt-oss, llama3.2, deepseek-r1) for genuine multi-billion parameter inference.",
+            tags = listOf("Ollama", "Live Server", "Local LAN", "Real Weights"),
+            isEmbedded = true,
             source = ModelSource.OLLAMA,
-            repoOrTag = "ollama:qwen2.5-coder:0.5b"
-        ),
-        ModelInfo(
-            id = "tinyllama-1.1b",
-            name = "TinyLlama 1.1B Chat",
-            family = "LLaMA",
-            parameterCount = "1.1B",
-            quantization = "Q4_K_S (GGUF)",
-            downloadSizeMb = 670,
-            memoryFootprintMb = 890,
-            contextLength = 2048,
-            description = "Pretrained on 3 trillion tokens. Compact, conversational, and highly capable for summarization and assistance.",
-            tags = listOf("Hugging Face", "Chat", "Open Source"),
-            isEmbedded = false,
-            downloadUrl = "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
-            source = ModelSource.HUGGING_FACE,
-            repoOrTag = "hf:TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF"
-        ),
-        ModelInfo(
-            id = "phi-35-mini",
-            name = "Phi-3.5 Mini 3.8B",
-            family = "Phi",
-            parameterCount = "3.8B",
-            quantization = "Q4_0 (GGUF)",
-            downloadSizeMb = 2150,
-            memoryFootprintMb = 2600,
-            contextLength = 4096,
-            description = "Microsoft's state-of-the-art small language model. Excels at complex code synthesis and multi-step reasoning.",
-            tags = listOf("Microsoft", "Heavy Reasoning", "Code Mastery"),
-            isEmbedded = false,
-            downloadUrl = "https://huggingface.co/microsoft/Phi-3.5-mini-instruct-GGUF",
-            source = ModelSource.HUGGING_FACE,
-            repoOrTag = "hf:microsoft/Phi-3.5-mini-instruct-GGUF"
-        ),
-        ModelInfo(
-            id = "mistral-7b-q4",
-            name = "Mistral 7B Instruct v0.3",
-            family = "Mistral",
-            parameterCount = "7.3B",
-            quantization = "Q3_K_M (GGUF)",
-            downloadSizeMb = 3300,
-            memoryFootprintMb = 3900,
-            contextLength = 8192,
-            description = "Mistral AI's flagship 7B parameter foundation model. High-capacity reasoning for high-end mobile devices.",
-            tags = listOf("Mistral", "Ollama", "High Capacity", "Flagship"),
-            isEmbedded = false,
-            downloadUrl = "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3",
-            source = ModelSource.OLLAMA,
-            repoOrTag = "ollama:mistral:7b"
+            repoOrTag = "ollama:host"
         )
     )
 
@@ -215,7 +207,7 @@ class ModelManager(private val context: Context) {
 
         for (file in files) {
             val baseName = file.nameWithoutExtension
-            if (defaultCatalog.none { it.id == baseName }) {
+            if (defaultCatalog.none { it.id == baseName || it.filename == file.name }) {
                 val sizeMb = (file.length() / (1024 * 1024)).toInt().coerceAtLeast(1)
                 customModels.add(
                     ModelInfo(
@@ -292,64 +284,92 @@ class ModelManager(private val context: Context) {
             ?: defaultCatalog.first()
     }
 
+    /**
+     * Downloads real GGUF weights via HTTPS using OkHttp with network verification.
+     */
     fun startDownload(modelId: String, scope: CoroutineScope) {
         val allCatalog = defaultCatalog + customModels
         val model = allCatalog.firstOrNull { it.id == modelId } ?: return
         if (downloadJobs.containsKey(modelId)) return
 
+        // 1. Check network connectivity before starting
+        if (!isNetworkConnected()) {
+            _downloadMessages.tryEmit("Cannot download ${model.name}: No active internet connection. Please connect to Wi-Fi.")
+            return
+        }
+
+        val url = model.downloadUrl
+        if (url.isBlank()) {
+            _downloadMessages.tryEmit("Model '${model.name}' does not have a direct download URL.")
+            return
+        }
+
         val targetFile = File(modelsDir, model.filename)
+        val tempFile = File(modelsDir, "${model.filename}.part")
 
         val job = scope.launch(Dispatchers.IO) {
             try {
-                val totalMb = model.downloadSizeMb.toFloat()
-                var downloadedMb = 0f
+                _downloadMessages.tryEmit("Connecting to Hugging Face CDN for ${model.name}...")
 
-                val raf = RandomAccessFile(targetFile, "rw")
-                raf.setLength(0)
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Synapse-Android-EdgeLLM/1.0")
+                    .build()
 
-                val headerBytes = "GGUF_MAGIC_EDGLLM_V3_${model.id}_${model.quantization}".toByteArray()
-                raf.write(headerBytes)
-
-                val startTime = System.currentTimeMillis()
-                val targetBytes = (model.downloadSizeMb.toLong() * 1024 * 1024).coerceAtLeast(1024 * 1024)
-                val bufferSize = 64 * 1024
-                val dummyBuffer = ByteArray(bufferSize) { (it % 256).toByte() }
-
-                var writtenBytes: Long = headerBytes.size.toLong()
-                val mbPerStep = 28f
-                val stepDelayMs = 110L
-
-                while (writtenBytes < targetBytes && isActive) {
-                    val remainingBytes = targetBytes - writtenBytes
-                    val toWrite = minOf(dummyBuffer.size.toLong(), remainingBytes).toInt()
-                    raf.write(dummyBuffer, 0, toWrite)
-                    writtenBytes += toWrite
-
-                    downloadedMb = writtenBytes.toFloat() / (1024f * 1024f)
-                    val progress = (writtenBytes.toFloat() / targetBytes.toFloat()).coerceIn(0f, 1f)
-
-                    val elapsedSec = ((System.currentTimeMillis() - startTime) / 1000f).coerceAtLeast(0.1f)
-                    val speed = downloadedMb / elapsedSec
-
-                    val downloadingStatus = ModelStatus.Downloading(
-                        progress = progress,
-                        downloadedMb = downloadedMb,
-                        totalMb = totalMb,
-                        speedMbps = speed * 8f
-                    )
-                    downloadProgressMap[modelId] = downloadingStatus
-
-                    withContext(Dispatchers.Main) {
-                        refreshModelsState()
-                    }
-
-                    delay(stepDelayMs)
-                    val burstBytes = (mbPerStep * 1024 * 1024).toLong()
-                    writtenBytes = minOf(writtenBytes + burstBytes, targetBytes)
-                    raf.setLength(writtenBytes)
+                val response = okHttpClient.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    throw IOException("HTTP server returned error ${response.code}: ${response.message}")
                 }
 
-                raf.close()
+                val body = response.body ?: throw IOException("Empty response body from model repository")
+                val contentLength = body.contentLength()
+                val totalBytes = if (contentLength > 0) contentLength else (model.downloadSizeMb.toLong() * 1024 * 1024)
+
+                val inputStream: InputStream = body.byteStream()
+                val outputStream = FileOutputStream(tempFile)
+                val buffer = ByteArray(64 * 1024)
+                var bytesRead: Int
+                var totalRead: Long = 0
+                val startTime = System.currentTimeMillis()
+                var lastUiUpdate = 0L
+
+                while (inputStream.read(buffer).also { bytesRead = it } != -1 && isActive) {
+                    outputStream.write(buffer, 0, bytesRead)
+                    totalRead += bytesRead
+
+                    val now = System.currentTimeMillis()
+                    if (now - lastUiUpdate > 300) {
+                        lastUiUpdate = now
+                        val downloadedMb = totalRead.toFloat() / (1024f * 1024f)
+                        val totalMb = totalBytes.toFloat() / (1024f * 1024f)
+                        val progress = (totalRead.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+                        val elapsedSec = ((now - startTime) / 1000f).coerceAtLeast(0.1f)
+                        val speedMbps = (downloadedMb / elapsedSec) * 8f
+
+                        downloadProgressMap[modelId] = ModelStatus.Downloading(
+                            progress = progress,
+                            downloadedMb = downloadedMb,
+                            totalMb = totalMb,
+                            speedMbps = speedMbps
+                        )
+                        withContext(Dispatchers.Main) {
+                            refreshModelsState()
+                        }
+                    }
+                }
+
+                outputStream.flush()
+                outputStream.close()
+                inputStream.close()
+
+                if (isActive) {
+                    if (targetFile.exists()) targetFile.delete()
+                    tempFile.renameTo(targetFile)
+                    _downloadMessages.tryEmit("Successfully downloaded ${model.name} (${targetFile.length() / (1024 * 1024)} MB).")
+                } else {
+                    tempFile.delete()
+                }
+
                 downloadProgressMap.remove(modelId)
                 downloadJobs.remove(modelId)
 
@@ -357,9 +377,10 @@ class ModelManager(private val context: Context) {
                     refreshModelsState()
                 }
             } catch (e: Exception) {
-                targetFile.delete()
+                if (tempFile.exists()) tempFile.delete()
                 downloadProgressMap.remove(modelId)
                 downloadJobs.remove(modelId)
+                _downloadMessages.tryEmit("Download failed: ${e.localizedMessage ?: "Network error"}")
                 withContext(Dispatchers.Main) {
                     refreshModelsState()
                 }
@@ -370,7 +391,7 @@ class ModelManager(private val context: Context) {
     }
 
     /**
-     * Downloads any model from a direct URL (Hugging Face .gguf, Ollama blob, etc.)
+     * Downloads any model from a direct URL (Hugging Face .gguf, direct HTTPS link).
      */
     fun downloadFromDirectUrl(
         url: String,
@@ -422,16 +443,16 @@ class ModelManager(private val context: Context) {
     }
 
     /**
-     * Pulls any arbitrary Ollama model tag (e.g. "deepseek-coder:1.3b", "llama3.2:1b", "orca-mini:3b")
+     * Pulls or configures an Ollama model tag.
      */
     fun pullOllamaTag(tag: String, scope: CoroutineScope): ModelInfo {
         val cleanTag = tag.trim().lowercase()
         val modelId = "ollama_" + cleanTag.replace(":", "_").replace("[^a-z0-9_-]".toRegex(), "_")
         val displayName = cleanTag.replaceFirstChar { it.uppercase() }
 
-        // Estimate size based on tag suffix
         val sizeMb = when {
             cleanTag.contains("70b") -> 38000
+            cleanTag.contains("20b") -> 12500
             cleanTag.contains("14b") -> 8500
             cleanTag.contains("8b") -> 4800
             cleanTag.contains("7b") -> 4100
@@ -439,8 +460,6 @@ class ModelManager(private val context: Context) {
             cleanTag.contains("2b") -> 1400
             cleanTag.contains("1.5b") -> 1100
             cleanTag.contains("1b") -> 800
-            cleanTag.contains("0.5b") -> 390
-            cleanTag.contains("135m") -> 110
             else -> 1200
         }
 
@@ -449,8 +468,7 @@ class ModelManager(private val context: Context) {
             cleanTag.contains("llama") -> "LLaMA"
             cleanTag.contains("mistral") -> "Mistral"
             cleanTag.contains("qwen") -> "Qwen"
-            cleanTag.contains("phi") -> "Phi"
-            cleanTag.contains("gemma") -> "Gemma"
+            cleanTag.contains("gpt-oss") -> "GPT-OSS"
             else -> "Ollama Model"
         }
 
@@ -459,13 +477,13 @@ class ModelManager(private val context: Context) {
             name = "Ollama: $displayName",
             family = family,
             parameterCount = cleanTag.substringAfter(":", "Custom"),
-            quantization = "Q4_K_M (Ollama GGUF)",
+            quantization = "Host Managed (Ollama)",
             downloadSizeMb = sizeMb,
             memoryFootprintMb = (sizeMb * 1.25).toInt(),
-            contextLength = 4096,
-            description = "Pulled from Ollama library ($cleanTag). Fully quantized for on-device ARM execution.",
-            tags = listOf("Ollama", "GGUF", cleanTag, "Offline"),
-            downloadUrl = "https://ollama.com/library/$cleanTag",
+            contextLength = 8192,
+            description = "Ollama server model: $cleanTag. Executes via Ollama API on your local network/host.",
+            tags = listOf("Ollama", "Live Server", cleanTag),
+            downloadUrl = "",
             filename = "$modelId.gguf",
             source = ModelSource.OLLAMA,
             repoOrTag = cleanTag
@@ -473,7 +491,39 @@ class ModelManager(private val context: Context) {
 
         customModels.add(modelInfo)
         refreshModelsState()
-        startDownload(modelInfo.id, scope)
+
+        // Trigger real pull on Ollama host if reachable
+        scope.launch(Dispatchers.IO) {
+            try {
+                val host = ollamaHostUrl.value
+                _downloadMessages.tryEmit("Pulling $cleanTag on Ollama server ($host)...")
+                com.example.services.OllamaService.pullModel(host, cleanTag).collect { progress ->
+                    val downloadingStatus = ModelStatus.Downloading(
+                        progress = progress.progress,
+                        downloadedMb = progress.completedBytes.toFloat() / (1024f * 1024f),
+                        totalMb = progress.totalBytes.toFloat() / (1024f * 1024f),
+                        speedMbps = 0f
+                    )
+                    downloadProgressMap[modelId] = downloadingStatus
+                    withContext(Dispatchers.Main) {
+                        refreshModelsState()
+                    }
+                }
+                downloadProgressMap.remove(modelId)
+                _downloadMessages.tryEmit("Ollama model $cleanTag is ready on host.")
+                withContext(Dispatchers.Main) {
+                    setActiveModel(modelId)
+                    refreshModelsState()
+                }
+            } catch (e: Exception) {
+                downloadProgressMap.remove(modelId)
+                _downloadMessages.tryEmit("Ollama pull note: ${e.localizedMessage ?: "Ensure Ollama is running"}")
+                withContext(Dispatchers.Main) {
+                    refreshModelsState()
+                }
+            }
+        }
+
         return modelInfo
     }
 
@@ -486,6 +536,8 @@ class ModelManager(private val context: Context) {
         if (model != null) {
             val file = File(modelsDir, model.filename)
             if (file.exists()) file.delete()
+            val part = File(modelsDir, "${model.filename}.part")
+            if (part.exists()) part.delete()
         }
         refreshModelsState()
     }
