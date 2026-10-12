@@ -165,7 +165,13 @@ object MathTool : ChatTool {
         var list = tokens.toMutableList()
         while ("(" in list) {
             val open = list.indexOfLast { it == "(" }
-            val close = list.indexOf(")", open)
+            var close = -1
+            for (idx in open + 1 until list.size) {
+                if (list[idx] == ")") {
+                    close = idx
+                    break
+                }
+            }
             if (close == -1) return null
             val inner = list.subList(open + 1, close).toList()
             if (inner.isEmpty()) return null
@@ -188,7 +194,7 @@ object MathTool : ChatTool {
         return values[0].toDoubleOrNull()
     }
 
-    private fun applyBinary(tokens: List<String>, operators: List<String>): List<String>? {
+    private fun applyBinary(tokens: List<String>, operators: List<String>): MutableList<String>? {
         val result = tokens.toMutableList()
         var i = 1
         while (i < result.size - 1) {
