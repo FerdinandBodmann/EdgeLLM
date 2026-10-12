@@ -83,6 +83,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val promptInput = MutableStateFlow("")
 
+    /** An image staged in the composer, pending send. */
+    data class PendingImage(
+        val uriString: String,
+        val mimeType: String,
+        val bytes: ByteArray
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is PendingImage) return false
+            return uriString == other.uriString
+        }
+
+        override fun hashCode(): Int = uriString.hashCode()
+    }
+
+    private val _pendingImage = MutableStateFlow<PendingImage?>(null)
+    val pendingImage: StateFlow<PendingImage?> = _pendingImage.asStateFlow()
+
+    /** Reads a picked/captured image into memory so it can be sent as context. */
+    fun attachImage(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val image = runCatching {
+                val resolver = getApplication<Application>().contentResolver
+                val mime = resolver.getType(uri) ?: "image/jpeg"
+                val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+                if (bytes.isEmpty()) null else PendingImage(uri.toString(), mime, bytes)
+            }.getOrNull()
+            if (image != null) _pendingImage.value = image
+        }
+    }
+
+    fun clearPendingImage() {
+        _pendingImage.value = null
+    }
+
     // Conversation history (pinned first, then most recent activity)
     val allChats: StateFlow<List<ChatEntity>> = chatDao.getAllChats()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -359,7 +394,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val activeModel = modelManager.getActiveModelInfo()
+        val attachedImage = _pendingImage.value
         promptInput.value = ""
+        _pendingImage.value = null
 
         streamingJob = viewModelScope.launch(Dispatchers.IO) {
             _isStreaming.value = true
@@ -376,7 +413,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         chatId = chatId,
                         role = "user",
                         content = text,
-                        modelName = activeModel.name
+                        modelName = activeModel.name,
+                        imageUri = attachedImage?.uriString,
+                        imageMimeType = attachedImage?.mimeType
                     )
                 )
                 chatDao.touchChat(chatId, System.currentTimeMillis())
@@ -384,7 +423,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Build historical context pairs (prior turns)
                 val history = _messages.value.map { it.role to it.content }
 
-                streamAssistantResponse(chatId, text, activeModel, history)
+                streamAssistantResponse(chatId, text, activeModel, history, image = attachedImage)
             } finally {
                 _isStreaming.value = false
             }
@@ -401,7 +440,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         userText: String,
         activeModel: ModelInfo,
         history: List<Pair<String, String>>,
-        existingAssistantId: Long? = null
+        existingAssistantId: Long? = null,
+        image: PendingImage? = null
     ) {
         // Insert Assistant Message Placeholder
         val assistantMsgId = existingAssistantId ?: chatDao.insertMessage(
@@ -413,8 +453,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
         )
 
+        val geminiSeesImages = activeModel.family == "Gemini" &&
+            com.example.services.GeminiService.hasApiKey(customGeminiApiKey.value)
+
+        // Cloud models receive the raw image; local models get on-device OCR text
+        // appended instead so "explain this screenshot" still works offline.
+        var promptText = userText
+        if (image != null && !geminiSeesImages) {
+            val ocr = com.example.services.ImageTextRecognizer.recognizeText(image.bytes)
+            promptText = if (ocr.isNotBlank()) {
+                "$userText\n\n[Text recognised on-device from the attached image]\n$ocr"
+            } else {
+                "$userText\n\n[An image was attached; no text could be recognised in it on-device.]"
+            }
+        }
+
         // Local RAG: ground the answer in the user's own documents when enabled.
-        val ragBlock = if (_ragEnabled.value) RagIndex.buildContextBlock(userText) else ""
+        val ragBlock = if (_ragEnabled.value) RagIndex.buildContextBlock(promptText) else ""
         val baseSystemPrompt = _inferenceConfig.value.systemPrompt
         val systemPrompt = if (ragBlock.isNotBlank()) "$baseSystemPrompt\n\n$ragBlock" else baseSystemPrompt
         val config = _inferenceConfig.value.copy(systemPrompt = systemPrompt)
@@ -426,13 +481,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 var tokenCount = 0
                 val accumulated = StringBuilder()
 
-                com.example.services.GeminiService.streamGenerateContent(
-                    prompt = userText,
-                    history = history,
-                    systemPrompt = systemPrompt,
-                    customApiKey = customGeminiApiKey.value,
-                    modelName = "gemini-2.5-flash"
-                ).collect { chunk ->
+                val geminiFlow = if (image != null) {
+                    com.example.services.GeminiService.streamGenerateContentWithImages(
+                        prompt = userText,
+                        history = history,
+                        systemPrompt = systemPrompt,
+                        customApiKey = customGeminiApiKey.value,
+                        modelName = "gemini-2.5-flash",
+                        imageParts = listOf(image.mimeType to image.bytes)
+                    )
+                } else {
+                    com.example.services.GeminiService.streamGenerateContent(
+                        prompt = userText,
+                        history = history,
+                        systemPrompt = systemPrompt,
+                        customApiKey = customGeminiApiKey.value,
+                        modelName = "gemini-2.5-flash"
+                    )
+                }
+                geminiFlow.collect { chunk ->
                     if (firstTokenTime == 0L) {
                         firstTokenTime = android.os.SystemClock.elapsedRealtime()
                     }
@@ -479,7 +546,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     com.example.services.OllamaService.streamChat(
                         endpoint = modelManager.ollamaHostUrl.value,
                         modelTag = tag,
-                        messages = history + ("user" to userText),
+                        messages = history + ("user" to promptText),
                         systemPrompt = systemPrompt
                     ).collect { chunk ->
                         if (firstTokenTime == 0L) {
@@ -535,7 +602,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 // Stream response token-by-token from On-Device Inference Engine (tools, RAG & smart answering)
                 inferenceEngine.generateStream(
-                    prompt = userText,
+                    prompt = promptText,
                     conversationHistory = history,
                     config = config
                 ).collect { chunk ->
@@ -559,7 +626,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val current = _messages.value.find { it.id == assistantMsgId }?.content ?: ""
             if (current.isEmpty()) {
                 inferenceEngine.generateStream(
-                    prompt = userText,
+                    prompt = promptText,
                     conversationHistory = history,
                     config = config
                 ).collect { chunk ->

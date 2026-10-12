@@ -85,6 +85,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -570,15 +572,29 @@ fun GeminiMessageItem(
                 color = GeminiUserBubble,
                 modifier = Modifier.widthIn(max = 330.dp)
             ) {
-                Text(
-                    text = message.content,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = GeminiWhite,
-                        fontSize = 15.sp,
-                        lineHeight = 22.sp
-                    ),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    message.imageUri?.let { imageUri ->
+                        AsyncImage(
+                            model = imageUri,
+                            contentDescription = "Attached image",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(170.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .testTag("message_image_${message.id}")
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    Text(
+                        text = message.content,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = GeminiWhite,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp
+                        )
+                    )
+                }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {

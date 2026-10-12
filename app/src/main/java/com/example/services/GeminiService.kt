@@ -1,5 +1,6 @@
 package com.example.services
 
+import android.util.Base64
 import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -51,49 +52,88 @@ object GeminiService {
         systemPrompt: String = "You are Synapse, a helpful, thoughtful, intelligent assistant.",
         customApiKey: String? = null,
         modelName: String = DEFAULT_MODEL
-    ): Flow<String> = flow {
-        val apiKey = getApiKey(customApiKey)
-        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
-            throw IllegalStateException("API_KEY_MISSING")
+    ): Flow<String> = streamRequest(
+        requestJson = buildRequestJson(prompt, history, systemPrompt, emptyList()),
+        modelName = modelName,
+        apiKey = getApiKey(customApiKey)
+    )
+
+    /**
+     * Multimodal variant: attaches one or more images (as `(mimeType, bytes)`
+     * pairs) to the current user turn so Gemini can reason over them.
+     */
+    fun streamGenerateContentWithImages(
+        prompt: String,
+        history: List<Pair<String, String>> = emptyList(),
+        systemPrompt: String = "You are Synapse, a helpful, thoughtful, intelligent assistant.",
+        customApiKey: String? = null,
+        modelName: String = DEFAULT_MODEL,
+        imageParts: List<Pair<String, ByteArray>> = emptyList()
+    ): Flow<String> = streamRequest(
+        requestJson = buildRequestJson(prompt, history, systemPrompt, imageParts),
+        modelName = modelName,
+        apiKey = getApiKey(customApiKey)
+    )
+
+    private fun buildRequestJson(
+        prompt: String,
+        history: List<Pair<String, String>>,
+        systemPrompt: String,
+        imageParts: List<Pair<String, ByteArray>>
+    ): JSONObject = JSONObject().apply {
+        // System instructions
+        put("systemInstruction", JSONObject().apply {
+            put("parts", JSONArray().apply {
+                put(JSONObject().apply { put("text", systemPrompt) })
+            })
+        })
+
+        // Conversation history & user prompt
+        val contentsArray = JSONArray()
+        for ((role, content) in history) {
+            if (content.isNotBlank()) {
+                val geminiRole = if (role == "assistant" || role == "model") "model" else "user"
+                contentsArray.put(JSONObject().apply {
+                    put("role", geminiRole)
+                    put("parts", JSONArray().apply {
+                        put(JSONObject().apply { put("text", content) })
+                    })
+                })
+            }
         }
 
-        val requestJson = JSONObject().apply {
-            // System instructions
-            put("systemInstruction", JSONObject().apply {
-                put("parts", JSONArray().apply {
-                    put(JSONObject().apply { put("text", systemPrompt) })
-                })
-            })
-
-            // Conversation history & user prompt
-            val contentsArray = JSONArray()
-            for ((role, content) in history) {
-                if (content.isNotBlank()) {
-                    val geminiRole = if (role == "assistant" || role == "model") "model" else "user"
-                    contentsArray.put(JSONObject().apply {
-                        put("role", geminiRole)
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply { put("text", content) })
+        // Current prompt, with optional inline images
+        contentsArray.put(JSONObject().apply {
+            put("role", "user")
+            put("parts", JSONArray().apply {
+                put(JSONObject().apply { put("text", prompt) })
+                imageParts.forEach { (mimeType, bytes) ->
+                    put(JSONObject().apply {
+                        put("inline_data", JSONObject().apply {
+                            put("mime_type", mimeType.ifBlank { "image/jpeg" })
+                            put("data", Base64.encodeToString(bytes, Base64.NO_WRAP))
                         })
                     })
                 }
-            }
-
-            // Current prompt
-            contentsArray.put(JSONObject().apply {
-                put("role", "user")
-                put("parts", JSONArray().apply {
-                    put(JSONObject().apply { put("text", prompt) })
-                })
             })
-            put("contents", contentsArray)
+        })
+        put("contents", contentsArray)
 
-            // Generation config
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.7)
-                put("topP", 0.95)
-                put("topK", 40)
-            })
+        // Generation config
+        put("generationConfig", JSONObject().apply {
+            put("temperature", 0.7)
+            put("topP", 0.95)
+            put("topK", 40)
+        })
+    }
+
+    private fun streamRequest(
+        requestJson: JSONObject,
+        modelName: String,
+        apiKey: String
+    ): Flow<String> = flow {
+        if (apiKey.isBlank() || apiKey == "MY_GEMINI_API_KEY") {
+            throw IllegalStateException("API_KEY_MISSING")
         }
 
         val url = "$BASE_URL$modelName:streamGenerateContent?alt=sse&key=$apiKey"

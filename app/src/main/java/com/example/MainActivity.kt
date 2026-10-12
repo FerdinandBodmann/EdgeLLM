@@ -1,11 +1,15 @@
 package com.example
 
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -39,11 +43,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.WbSunny
@@ -75,6 +82,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.FileProvider
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.MainViewModel
@@ -98,6 +106,8 @@ import com.example.ui.theme.MyApplicationTheme
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import coil.compose.AsyncImage
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
@@ -328,6 +338,23 @@ fun ChatInputSection(
         onDispose { voiceController.destroy() }
     }
 
+    val pendingImage by viewModel.pendingImage.collectAsState()
+    val captureUri = remember { mutableStateOf<Uri?>(null) }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) viewModel.attachImage(uri)
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { saved ->
+        val uri = captureUri.value
+        if (saved && uri != null) viewModel.attachImage(uri)
+        captureUri.value = null
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -375,6 +402,45 @@ fun ChatInputSection(
             }
         }
 
+        // Preview of a staged image attachment
+        if (pendingImage != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp)
+                    .testTag("pending_image_preview"),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = pendingImage?.uriString,
+                    contentDescription = "Attached image",
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Image attached — analysed on send",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = ClaudeAmberWheat,
+                        fontSize = 11.sp
+                    )
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = { viewModel.clearPendingImage() },
+                    modifier = Modifier.size(26.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Remove image",
+                        tint = ClaudeTextTertiary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+        }
+
         // Claude-Style Text Input Field
         OutlinedTextField(
             value = promptInput,
@@ -399,6 +465,44 @@ fun ChatInputSection(
                 fontSize = 14.5.sp,
                 fontFamily = if (promptInput.contains("```") || promptInput.startsWith("fun ") || promptInput.startsWith("def ")) JetBrainsMono else FontFamily.Default
             ),
+            leadingIcon = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            photoPicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .testTag("attach_photo_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Attach photo",
+                            tint = ClaudeTextTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            val uri = createCaptureUri(context)
+                            captureUri.value = uri
+                            cameraLauncher.launch(uri)
+                        },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .testTag("attach_camera_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = "Take photo",
+                            tint = ClaudeTextTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            },
             trailingIcon = {
                 IconButton(
                     onClick = {
@@ -570,4 +674,11 @@ fun ChatInputSection(
             }
         }
     }
+}
+
+/** Creates a cache file + content URI for the system camera to write a capture into. */
+private fun createCaptureUri(context: android.content.Context): Uri {
+    val dir = File(context.cacheDir, "captures").apply { mkdirs() }
+    val file = File(dir, "capture_${System.currentTimeMillis()}.jpg")
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 }
