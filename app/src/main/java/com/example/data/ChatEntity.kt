@@ -9,7 +9,9 @@ data class ChatEntity(
     val id: Long = 0,
     val title: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val activeModelId: String = "nanollm-embedded"
+    val activeModelId: String = "nanollm-embedded",
+    val isPinned: Boolean = false,
+    val lastMessageAt: Long = createdAt
 )
 
 @Entity(tableName = "messages")
@@ -23,5 +25,7 @@ data class MessageEntity(
     val tokensCount: Int = 0,
     val tokensPerSec: Float = 0f,
     val timeToFirstTokenMs: Long = 0L,
-    val modelName: String = ""
+    val modelName: String = "",
+    val imageUri: String? = null,
+    val imageMimeType: String? = null
 )

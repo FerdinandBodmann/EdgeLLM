@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
@@ -108,6 +109,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SynapseApp(viewModel: MainViewModel) {
     val selectedTab by viewModel.selectedTab.collectAsState()
+    val showChatHistory by viewModel.showChatHistory.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     BackHandler(enabled = selectedTab != 0) {
@@ -130,37 +132,45 @@ fun SynapseApp(viewModel: MainViewModel) {
             .fillMaxSize()
             .background(ClaudeDarkBackground)
     ) {
-        // Main Screen Content Area
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(bottomInsets)
-                .padding(
-                    bottom = if (selectedTab == 0 && !isKeyboardOpen) 146.dp
-                    else if (selectedTab == 0) 84.dp
-                    else 76.dp
-                )
-        ) {
-            when (selectedTab) {
-                0 -> ChatScreen(viewModel = viewModel)
-                1 -> StorageDashboardScreen(viewModel = viewModel)
-                2 -> ModelManagerScreen(viewModel = viewModel)
-                3 -> BenchmarkScreen(viewModel = viewModel)
+        if (showChatHistory) {
+            com.example.ui.history.ChatHistoryScreen(
+                viewModel = viewModel,
+                onClose = { viewModel.showChatHistory.value = false },
+                modifier = Modifier.windowInsetsPadding(bottomInsets)
+            )
+        } else {
+            // Main Screen Content Area
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(bottomInsets)
+                    .padding(
+                        bottom = if (selectedTab == 0 && !isKeyboardOpen) 146.dp
+                        else if (selectedTab == 0) 84.dp
+                        else 76.dp
+                    )
+            ) {
+                when (selectedTab) {
+                    0 -> ChatScreen(viewModel = viewModel)
+                    1 -> StorageDashboardScreen(viewModel = viewModel)
+                    2 -> ModelManagerScreen(viewModel = viewModel)
+                    3 -> BenchmarkScreen(viewModel = viewModel)
+                }
             }
-        }
 
-        // ONE Unified Floating Bar: Integrates Text Input + Floating Navigation Dock
-        // Always floats smoothly above keyboard or navigation bar without overlapping
-        UnifiedFloatingBottomBar(
-            selectedTab = selectedTab,
-            onTabSelected = { viewModel.selectedTab.value = it },
-            viewModel = viewModel,
-            isKeyboardOpen = isKeyboardOpen,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .windowInsetsPadding(bottomInsets)
-                .padding(horizontal = 14.dp, vertical = 8.dp)
-        )
+            // ONE Unified Floating Bar: Integrates Text Input + Floating Navigation Dock
+            // Always floats smoothly above keyboard or navigation bar without overlapping
+            UnifiedFloatingBottomBar(
+                selectedTab = selectedTab,
+                onTabSelected = { viewModel.selectedTab.value = it },
+                viewModel = viewModel,
+                isKeyboardOpen = isKeyboardOpen,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(bottomInsets)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            )
+        }
     }
 }
 
@@ -278,6 +288,7 @@ fun ChatInputSection(
 ) {
     val promptInput by viewModel.promptInput.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
+    val editingMessageId by viewModel.editingMessageId.collectAsState()
 
     Column(
         modifier = Modifier
@@ -287,6 +298,45 @@ fun ChatInputSection(
                 vertical = if (isKeyboardOpen) 4.dp else 6.dp
             )
     ) {
+        // Editing banner: shown while an existing user turn is being revised.
+        if (editingMessageId != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = ClaudeCoral,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Editing message — send to resubmit",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = ClaudeAmberWheat,
+                            fontSize = 11.sp
+                        )
+                    )
+                }
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = ClaudeCoral,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.sp
+                    ),
+                    modifier = Modifier
+                        .clickable { viewModel.cancelEditing(); viewModel.promptInput.value = "" }
+                        .testTag("cancel_edit_button")
+                )
+            }
+        }
+
         // Claude-Style Text Input Field
         OutlinedTextField(
             value = promptInput,

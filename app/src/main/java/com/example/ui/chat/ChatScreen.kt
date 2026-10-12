@@ -3,6 +3,7 @@ package com.example.ui.chat
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -45,10 +46,14 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.AlertDialog
@@ -236,6 +241,42 @@ fun ChatScreen(
                             modifier = Modifier.background(GeminiDarkSurface)
                         ) {
                             DropdownMenuItem(
+                                text = { Text("Chat history", color = GeminiTextPrimary) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = GeminiBlue,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.showChatHistory.value = true
+                                },
+                                modifier = Modifier.testTag("chat_history_menu_item")
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export as Markdown", color = GeminiTextPrimary) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Share,
+                                        contentDescription = null,
+                                        tint = GeminiTextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    shareAsText(
+                                        context = context,
+                                        text = viewModel.buildCurrentChatMarkdown(),
+                                        subject = viewModel.currentChatTitle()
+                                    )
+                                },
+                                modifier = Modifier.testTag("export_chat_menu_item")
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Clear chat", color = GeminiErrorRed) },
                                 leadingIcon = {
                                     Icon(
@@ -351,7 +392,13 @@ fun ChatScreen(
                             },
                             onDelete = {
                                 viewModel.deleteMessage(message.id)
-                            }
+                            },
+                            onShare = {
+                                shareAsText(context, message.content, "Synapse message")
+                            },
+                            onRegenerate = { viewModel.regenerateMessage(message.id) },
+                            onEdit = { viewModel.startEditing(message.id) },
+                            canRegenerate = !isStreaming && message.role == "assistant" && message == messages.lastOrNull()
                         )
                     }
                 }
@@ -482,14 +529,18 @@ fun GeminiMessageItem(
     message: MessageEntity,
     isStreamingThis: Boolean,
     onCopy: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onShare: () -> Unit = {},
+    onRegenerate: () -> Unit = {},
+    onEdit: () -> Unit = {},
+    canRegenerate: Boolean = false
 ) {
     val isUser = message.role == "user"
 
     if (isUser) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+            horizontalAlignment = Alignment.End
         ) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
@@ -505,6 +556,26 @@ fun GeminiMessageItem(
                     ),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                 )
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit and resend",
+                        tint = GeminiTextTertiary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(2.dp))
+                IconButton(onClick = onShare, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                        tint = GeminiTextTertiary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     } else {
@@ -592,6 +663,22 @@ fun GeminiMessageItem(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (canRegenerate) {
+                        IconButton(
+                            onClick = onRegenerate,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("regenerate_message_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Regenerate",
+                                tint = GeminiBlue,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
                     IconButton(
                         onClick = onCopy,
                         modifier = Modifier.size(28.dp)
@@ -599,6 +686,18 @@ fun GeminiMessageItem(
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
                             contentDescription = "Copy",
+                            tint = GeminiTextTertiary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onShare,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
                             tint = GeminiTextTertiary,
                             modifier = Modifier.size(15.dp)
                         )
@@ -1107,6 +1206,22 @@ fun GeminiInlineText(
         ),
         modifier = modifier
     )
+}
+
+/**
+ * Shares arbitrary text via the system share sheet.
+ */
+private fun shareAsText(context: Context, text: String, subject: String = "Synapse") {
+    if (text.isBlank()) {
+        Toast.makeText(context, "Nothing to share yet", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, subject)
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    context.startActivity(Intent.createChooser(intent, "Share"))
 }
 
 /**
