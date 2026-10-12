@@ -60,4 +60,19 @@ class ExampleRobolectricTest {
         assertTrue(finalChunk.accumulatedText.isNotEmpty())
         assertTrue(finalChunk.telemetry.tokensGenerated > 0)
     }
+
+    @Test
+    fun `test weather query detection and location extraction`() {
+        val prompt = "hows the weather in haßloch germany"
+        assertTrue(com.example.services.WeatherService.isWeatherQuery(prompt))
+        val location = com.example.services.WeatherService.extractLocation(prompt)
+        assertTrue(location.contains("Haßloch", ignoreCase = true) || location.contains("Hassloch", ignoreCase = true))
+    }
+
+    @Test
+    fun `test weather offline response formatting`() {
+        val text = com.example.services.WeatherService.formatOfflineWeatherKnowledge("Haßloch Germany")
+        assertTrue(text.contains("Haßloch") || text.contains("Palatinate"))
+        assertTrue(text.contains("°C"))
+    }
 }

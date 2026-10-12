@@ -102,33 +102,55 @@ object WeatherService {
      */
     suspend fun fetchWeather(query: String): WeatherResult? = withContext(Dispatchers.IO) {
         try {
-            val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            val geocodingUrl = "https://geocoding-api.open-meteo.com/v1/search?name=$encodedQuery&count=1&language=en&format=json"
+            var geoBody: String? = null
+            val candidates = mutableListOf<String>()
+            candidates.add(query.trim().trimEnd(',', '.', '?', '!'))
 
-            val geoRequest = Request.Builder()
-                .url(geocodingUrl)
-                .header("User-Agent", "SynapseEdgeAI/1.0")
-                .build()
-
-            val geoResponse = client.newCall(geoRequest).execute()
-            if (!geoResponse.isSuccessful) return@withContext null
-
-            val geoBody = geoResponse.body?.string() ?: return@withContext null
-            val geoJson = JSONObject(geoBody)
-
-            if (!geoJson.has("results")) {
-                // If specific compound query like "Haßloch Germany" failed, try first token
-                val firstWord = query.split(" ").firstOrNull() ?: query
-                if (firstWord != query && firstWord.length > 2) {
-                    return@withContext fetchWeather(firstWord)
-                }
-                return@withContext null
+            // Strip country suffix if present, e.g. "Haßloch Germany" -> "Haßloch"
+            val strippedCountry = candidates[0]
+                .replace(Regex("(?i)\\b(germany|deutschland|austria|österreich|switzerland|schweiz|france|usa|uk)\\b"), "")
+                .trim().trimEnd(',', '.')
+            if (strippedCountry.isNotBlank() && strippedCountry != candidates[0]) {
+                candidates.add(strippedCountry)
             }
 
-            val resultsArray = geoJson.getJSONArray("results")
-            if (resultsArray.length() == 0) return@withContext null
+            // German ß vs ss transliteration
+            if (candidates[0].contains("ss", ignoreCase = true)) {
+                candidates.add(candidates[0].replace("ss", "ß", ignoreCase = true))
+                if (strippedCountry.isNotBlank()) candidates.add(strippedCountry.replace("ss", "ß", ignoreCase = true))
+            } else if (candidates[0].contains("ß")) {
+                candidates.add(candidates[0].replace("ß", "ss"))
+            }
 
-            val place = resultsArray.getJSONObject(0)
+            // First word candidate
+            val firstWord = candidates[0].split(Regex("[,\\s]+")).firstOrNull()
+            if (firstWord != null && firstWord.length > 2 && !candidates.contains(firstWord)) {
+                candidates.add(firstWord)
+            }
+
+            var place: JSONObject? = null
+            for (candidate in candidates) {
+                if (candidate.isBlank()) continue
+                val encodedQuery = URLEncoder.encode(candidate, "UTF-8")
+                val geocodingUrl = "https://geocoding-api.open-meteo.com/v1/search?name=$encodedQuery&count=1&language=en&format=json"
+                val geoRequest = Request.Builder()
+                    .url(geocodingUrl)
+                    .header("User-Agent", "SynapseEdgeAI/1.0")
+                    .build()
+                val geoResponse = runCatching { client.newCall(geoRequest).execute() }.getOrNull()
+                if (geoResponse != null && geoResponse.isSuccessful) {
+                    val body = geoResponse.body?.string()
+                    if (body != null) {
+                        val json = JSONObject(body)
+                        if (json.has("results") && json.getJSONArray("results").length() > 0) {
+                            place = json.getJSONArray("results").getJSONObject(0)
+                            break
+                        }
+                    }
+                }
+            }
+
+            if (place == null) return@withContext null
             val name = place.optString("name", query)
             val country = place.optString("country", "")
             val admin1 = place.optString("admin1", "")
