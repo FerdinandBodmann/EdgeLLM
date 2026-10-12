@@ -4,70 +4,133 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Neural Network Connecting Edges (Input -> Hidden -> Output) -->
-    <!-- Input to Hidden Layer Connections -->
+    <!-- Input Vector Traces (Data entering chain) -->
     <path
-        android:pathData="M36,42 L54,34 M36,42 L54,54 M36,42 L54,74"
+        android:pathData="M22,42 L34,42"
         android:strokeWidth="1.8"
-        android:strokeColor="#A8826B"
-        android:strokeLineCap="round" />
-
+        android:strokeColor="#78726A"
+        android:strokeLineCap="square" />
     <path
-        android:pathData="M36,66 L54,34 M36,66 L54,54 M36,66 L54,74"
+        android:pathData="M22,66 L34,66"
         android:strokeWidth="1.8"
-        android:strokeColor="#A8826B"
+        android:strokeColor="#78726A"
+        android:strokeLineCap="square" />
+
+    <!-- Neural Network Synapse Lines (Input -> Hidden) -->
+    <path
+        android:pathData="M34,42 L54,34"
+        android:strokeWidth="1.5"
+        android:strokeColor="#5E5850"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M34,42 L54,54"
+        android:strokeWidth="2.0"
+        android:strokeColor="#D97757"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M34,42 L54,74"
+        android:strokeWidth="1.5"
+        android:strokeColor="#5E5850"
         android:strokeLineCap="round" />
 
-    <!-- Hidden to Output Layer Connections -->
     <path
-        android:pathData="M54,34 L72,54 M54,54 L72,54 M54,74 L72,54"
-        android:strokeWidth="2.2"
-        android:strokeColor="#C96846"
+        android:pathData="M34,66 L54,34"
+        android:strokeWidth="1.5"
+        android:strokeColor="#5E5850"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M34,66 L54,54"
+        android:strokeWidth="2.0"
+        android:strokeColor="#D97757"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M34,66 L54,74"
+        android:strokeWidth="1.5"
+        android:strokeColor="#5E5850"
         android:strokeLineCap="round" />
 
-    <!-- Input Neurons (2 nodes) -->
+    <!-- Synapse Lines (Hidden -> Output Chain) -->
+    <path
+        android:pathData="M54,34 L74,54"
+        android:strokeWidth="1.5"
+        android:strokeColor="#5E5850"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M54,54 L74,54"
+        android:strokeWidth="2.4"
+        android:strokeColor="#E28669"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M54,74 L74,54"
+        android:strokeWidth="1.5"
+        android:strokeColor="#5E5850"
+        android:strokeLineCap="round" />
+
+    <!-- Output Vector Trace (Inference Result exiting chain) -->
+    <path
+        android:pathData="M74,54 L86,54"
+        android:strokeWidth="2.4"
+        android:strokeColor="#E28669"
+        android:strokeLineCap="square" />
+    <!-- Arrowhead on output trace -->
+    <path
+        android:pathData="M83,50 L87,54 L83,58"
+        android:strokeWidth="1.8"
+        android:strokeColor="#E28669"
+        android:strokeLineCap="square"
+        android:strokeLineJoin="miter" />
+
+    <!-- Sharp Diamond Neurons: Input Layer -->
+    <!-- In 1 (34, 42) -->
+    <path
+        android:fillColor="#E28669"
+        android:pathData="M34,37 L39,42 L34,47 L29,42 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M34,39.5 L36.5,42 L34,44.5 L31.5,42 Z" />
+
+    <!-- In 2 (34, 66) -->
+    <path
+        android:fillColor="#E28669"
+        android:pathData="M34,61 L39,66 L34,71 L29,66 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M34,63.5 L36.5,66 L34,68.5 L31.5,66 Z" />
+
+    <!-- Sharp Diamond Neurons: Hidden Layer -->
+    <!-- H 1 (54, 34) -->
+    <path
+        android:fillColor="#78726A"
+        android:pathData="M54,29 L59,34 L54,39 L49,34 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M54,32 L56,34 L54,36 L52,34 Z" />
+
+    <!-- H 2 - Core Active Neuron (54, 54) -->
     <path
         android:fillColor="#D97757"
-        android:pathData="M36,37.5 A4.5,4.5 0 1,1 35.9,37.5 Z" />
+        android:pathData="M54,47 L61,54 L54,61 L47,54 Z" />
     <path
         android:fillColor="#FAF6F0"
-        android:pathData="M36,40.2 A1.8,1.8 0 1,1 35.9,40.2 Z" />
+        android:pathData="M54,50.5 L57.5,54 L54,57.5 L50.5,54 Z" />
 
+    <!-- H 3 (54, 74) -->
+    <path
+        android:fillColor="#78726A"
+        android:pathData="M54,69 L59,74 L54,79 L49,74 Z" />
+    <path
+        android:fillColor="#FAF6F0"
+        android:pathData="M54,72 L56,74 L54,76 L52,74 Z" />
+
+    <!-- Sharp Diamond Neurons: Focal Output Neuron (74, 54) -->
     <path
         android:fillColor="#D97757"
-        android:pathData="M36,61.5 A4.5,4.5 0 1,1 35.9,61.5 Z" />
+        android:pathData="M74,45 L83,54 L74,63 L65,54 Z" />
     <path
         android:fillColor="#FAF6F0"
-        android:pathData="M36,64.2 A1.8,1.8 0 1,1 35.9,64.2 Z" />
-
-    <!-- Hidden Layer Neurons (3 nodes) -->
+        android:pathData="M74,48.5 L79.5,54 L74,59.5 L68.5,54 Z" />
     <path
         android:fillColor="#D97757"
-        android:pathData="M54,29 A5,5 0 1,1 53.9,29 Z" />
-    <path
-        android:fillColor="#FAF6F0"
-        android:pathData="M54,32 A2,2 0 1,1 53.9,32 Z" />
-
-    <path
-        android:fillColor="#E08365"
-        android:pathData="M54,48.5 A5.5,5.5 0 1,1 53.9,48.5 Z" />
-    <path
-        android:fillColor="#FAF6F0"
-        android:pathData="M54,51.8 A2.2,2.2 0 1,1 53.9,51.8 Z" />
-
-    <path
-        android:fillColor="#D97757"
-        android:pathData="M54,69 A5,5 0 1,1 53.9,69 Z" />
-    <path
-        android:fillColor="#FAF6F0"
-        android:pathData="M54,72 A2,2 0 1,1 53.9,72 Z" />
-
-    <!-- Focal Output Neuron (1 prominent node) -->
-    <path
-        android:fillColor="#F09275"
-        android:pathData="M72,47.5 A6.5,6.5 0 1,1 71.9,47.5 Z" />
-    <path
-        android:fillColor="#FAF6F0"
-        android:pathData="M72,51.4 A2.6,2.6 0 1,1 71.9,51.4 Z" />
+        android:pathData="M74,51.5 L76.5,54 L74,56.5 L71.5,54 Z" />
 
 </vector>

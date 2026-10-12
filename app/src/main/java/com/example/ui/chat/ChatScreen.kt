@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,7 +121,7 @@ fun ChatScreen(
             .background(MaterialTheme.colorScheme.background)
             .imePadding()
     ) {
-        // Claude-styled Top Bar
+        // Claude-styled Top Bar - Sleek & Compact for modern phone aspect ratios
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surface,
@@ -131,72 +132,64 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
                     // Claude-inspired Asterisk Icon
                     Surface(
                         shape = CircleShape,
                         color = ClaudeCoral.copy(alpha = 0.15f),
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(30.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = ClaudeCoral,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Synapse",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    letterSpacing = 0.3.sp
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = ClaudeCoral.copy(alpha = 0.12f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, ClaudeCoral.copy(alpha = 0.3f))
-                            ) {
-                                Text(
-                                    text = activeModel.name,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = ClaudeCoral,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 11.sp
-                                    ),
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
+                    Text(
+                        text = "Synapse",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            letterSpacing = 0.2.sp
+                        )
+                    )
 
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = ClaudeCoral.copy(alpha = 0.12f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ClaudeCoral.copy(alpha = 0.3f))
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(6.dp)
+                                    .size(5.dp)
                                     .clip(CircleShape)
                                     .background(WarmSuccessGreen)
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "100% Offline • Private On-Device Neural Compute",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = activeModel.name,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = ClaudeCoral,
+                                    fontWeight = FontWeight.SemiBold,
                                     fontSize = 11.sp
                                 )
                             )
@@ -207,24 +200,30 @@ fun ChatScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { viewModel.createNewChat() },
-                        modifier = Modifier.testTag("new_chat_button")
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("new_chat_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "New Conversation",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
                     Box {
                         IconButton(
                             onClick = { showMenu = true },
-                            modifier = Modifier.testTag("chat_menu_button")
+                            modifier = Modifier
+                                .size(36.dp)
+                                .testTag("chat_menu_button")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
                                 contentDescription = "Menu",
-                                tint = MaterialTheme.colorScheme.onSurface
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
@@ -258,8 +257,8 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             viewModel.systemPersonas.forEachIndexed { index, (name, _) ->
                 FilterChip(
@@ -1291,48 +1290,51 @@ fun ClaudeEmptyPlaceholder(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
         Surface(
             shape = CircleShape,
             color = ClaudeCoral.copy(alpha = 0.12f),
             border = androidx.compose.foundation.BorderStroke(1.dp, ClaudeCoral.copy(alpha = 0.3f)),
-            modifier = Modifier.size(64.dp)
+            modifier = Modifier.size(54.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = null,
                     tint = ClaudeCoral,
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text(
-            text = "Synapse Offline Engine",
+            text = "Synapse Neural Engine",
             style = MaterialTheme.typography.titleMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
 
         Text(
-            text = "Active: $activeModelName\nLocal on-device reasoning without cloud dependencies.",
+            text = "Active: $activeModelName • 100% On-Device Neural Compute",
             style = MaterialTheme.typography.bodySmall.copy(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                lineHeight = 18.sp
+                lineHeight = 16.sp
             )
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         val promptSuggestions = listOf(
             "Write a Kotlin Coroutines Flow example with error handling",
