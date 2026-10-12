@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -128,6 +129,7 @@ fun ChatScreen(
     val isStreaming by viewModel.isStreaming.collectAsState()
     val promptInput by viewModel.promptInput.collectAsState()
     val selectedPersonaIndex by viewModel.selectedPersonaIndex.collectAsState()
+    val speakingMessageId by viewModel.speakingMessageId.collectAsState()
     val allModels by viewModel.modelManager.modelsState.collectAsState()
     val activeModelId by viewModel.modelManager.activeModelId.collectAsState()
     val activeModel = viewModel.modelManager.getActiveModelInfo()
@@ -415,6 +417,8 @@ fun ChatScreen(
                             },
                             onRegenerate = { viewModel.regenerateMessage(message.id) },
                             onEdit = { viewModel.startEditing(message.id) },
+                            onSpeak = { viewModel.toggleSpeak(message) },
+                            isSpeaking = speakingMessageId == message.id,
                             canRegenerate = !isStreaming && message.role == "assistant" && message == messages.lastOrNull()
                         )
                     }
@@ -550,6 +554,8 @@ fun GeminiMessageItem(
     onShare: () -> Unit = {},
     onRegenerate: () -> Unit = {},
     onEdit: () -> Unit = {},
+    onSpeak: () -> Unit = {},
+    isSpeaking: Boolean = false,
     canRegenerate: Boolean = false
 ) {
     val isUser = message.role == "user"
@@ -716,6 +722,18 @@ fun GeminiMessageItem(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Share",
                             tint = GeminiTextTertiary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onSpeak,
+                        modifier = Modifier.size(28.dp).testTag("speak_message_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = if (isSpeaking) "Stop reading" else "Read aloud",
+                            tint = if (isSpeaking) GeminiBlue else GeminiTextTertiary,
                             modifier = Modifier.size(15.dp)
                         )
                     }

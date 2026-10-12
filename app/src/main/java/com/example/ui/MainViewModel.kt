@@ -77,6 +77,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _editingMessageId = MutableStateFlow<Long?>(null)
     val editingMessageId: StateFlow<Long?> = _editingMessageId.asStateFlow()
 
+    // Assistant message currently being read aloud (null when idle)
+    private val _speakingMessageId = MutableStateFlow<Long?>(null)
+    val speakingMessageId: StateFlow<Long?> = _speakingMessageId.asStateFlow()
+
     val promptInput = MutableStateFlow("")
 
     // Conversation history (pinned first, then most recent activity)
@@ -131,6 +135,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var messageCollectionJob: Job? = null
 
     init {
+        // Text-to-speech for reading assistant answers aloud.
+        com.example.services.SpeechOutput.init(getApplication())
+        com.example.services.SpeechOutput.onFinished = { _speakingMessageId.value = null }
+
         // Initialize default model
         viewModelScope.launch {
             val activeModel = modelManager.getActiveModelInfo()
@@ -140,6 +148,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             rebuildRagIndex()
             initializeChatSession()
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        com.example.services.SpeechOutput.shutdown()
+        streamingJob?.cancel()
+        benchmarkJob?.cancel()
+        messageCollectionJob?.cancel()
     }
 
     private suspend fun initializeChatSession() {
@@ -224,6 +240,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             chatDao.deleteMessage(messageId)
         }
+    }
+
+    /** Reads a message aloud, or stops playback if it is already speaking. */
+    fun toggleSpeak(message: MessageEntity) {
+        if (_speakingMessageId.value == message.id) {
+            com.example.services.SpeechOutput.stop()
+            _speakingMessageId.value = null
+            return
+        }
+        // Strip fenced code blocks and markdown markers for cleaner narration.
+        val spoken = message.content
+            .replace(Regex("```[\\s\\S]*?```"), " code block ")
+            .replace(Regex("`"), "")
+            .replace(Regex("[#*_>|]"), " ")
+            .trim()
+        if (spoken.isBlank()) return
+        _speakingMessageId.value = message.id
+        com.example.services.SpeechOutput.speak(spoken)
+    }
+
+    fun stopSpeaking() {
+        com.example.services.SpeechOutput.stop()
+        _speakingMessageId.value = null
     }
 
     // --- Message actions --------------------------------------------------------

@@ -80,6 +80,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.MainViewModel
 import com.example.ui.benchmark.BenchmarkScreen
 import com.example.ui.chat.ChatScreen
+import com.example.ui.chat.VoiceInputController
 import com.example.ui.dashboard.StorageDashboardScreen
 import com.example.ui.models.ModelManagerScreen
 import com.example.ui.theme.ClaudeAmberWheat
@@ -94,6 +95,9 @@ import com.example.ui.theme.ClaudeTextSecondary
 import com.example.ui.theme.ClaudeTextTertiary
 import com.example.ui.theme.JetBrainsMono
 import com.example.ui.theme.MyApplicationTheme
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 
 class MainActivity : ComponentActivity() {
 
@@ -293,6 +297,7 @@ fun UnifiedFloatingBottomBar(
     }
 }
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ChatInputSection(
     viewModel: MainViewModel,
@@ -301,6 +306,27 @@ fun ChatInputSection(
     val promptInput by viewModel.promptInput.collectAsState()
     val isStreaming by viewModel.isStreaming.collectAsState()
     val editingMessageId by viewModel.editingMessageId.collectAsState()
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val recordPermission = rememberPermissionState(android.Manifest.permission.RECORD_AUDIO)
+    var isListening by remember { mutableStateOf(false) }
+    val voiceController = remember {
+        VoiceInputController(
+            context = context,
+            onPartial = { viewModel.promptInput.value = it },
+            onFinal = { text ->
+                if (text.isNotBlank()) viewModel.promptInput.value = text
+                isListening = false
+            },
+            onError = { message ->
+                isListening = false
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose { voiceController.destroy() }
+    }
 
     Column(
         modifier = Modifier
@@ -373,6 +399,31 @@ fun ChatInputSection(
                 fontSize = 14.5.sp,
                 fontFamily = if (promptInput.contains("```") || promptInput.startsWith("fun ") || promptInput.startsWith("def ")) JetBrainsMono else FontFamily.Default
             ),
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        if (!recordPermission.status.isGranted) {
+                            recordPermission.launchPermissionRequest()
+                        } else if (!voiceController.isAvailable) {
+                            Toast.makeText(context, "Speech recognition is unavailable", Toast.LENGTH_SHORT).show()
+                        } else if (isListening) {
+                            voiceController.stop()
+                            isListening = false
+                        } else {
+                            voiceController.start()
+                            isListening = true
+                        }
+                    },
+                    modifier = Modifier.testTag("voice_input_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = if (isListening) "Stop voice input" else "Voice input",
+                        tint = if (isListening) ClaudeCoral else ClaudeTextTertiary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent,
