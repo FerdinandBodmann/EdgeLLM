@@ -2,8 +2,8 @@ package com.example.inference
 
 import android.content.Context
 import android.os.SystemClock
+import com.example.inference.tools.ToolRegistry
 import com.example.models.ModelInfo
-import com.example.services.WeatherService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -207,22 +207,13 @@ class OnDeviceInferenceEngine(private val context: Context) {
         val trimmed = prompt.trim()
         val lower = trimmed.lowercase()
 
-        // 1. Weather Queries: Direct live lookup or localized climate response
-        if (WeatherService.isWeatherQuery(trimmed)) {
-            val location = WeatherService.extractLocation(trimmed)
-            val liveWeather = WeatherService.fetchWeather(location)
-            val text = if (liveWeather != null) {
-                WeatherService.formatWeatherResponse(liveWeather)
-            } else {
-                WeatherService.formatOfflineWeatherKnowledge(location)
-            }
-            return tokenizeText(wrapWithThinkIfDeepSeek(text, model, trimmed, config))
-        }
-
-        // 2. Math & Numeric Computations: e.g. "25 * 14", "sqrt(144)", "15% of 200"
-        val mathAnswer = trySolveMath(trimmed)
-        if (mathAnswer != null) {
-            return tokenizeText(wrapWithThinkIfDeepSeek(mathAnswer, model, trimmed, config))
+        // 1. Local Tool Registry invocation (weather, math, clock, unit conversion,
+        //    device info, notes/documents RAG). Deterministic tools run entirely
+        //    on-device before any synthetic/cloud generation path.
+        val toolResult = ToolRegistry.tryExecute(trimmed, model, context)
+        if (toolResult != null) {
+            val content = wrapWithThinkIfDeepSeek(toolResult.content, model, trimmed, config)
+            return tokenizeText(content)
         }
 
         // 2b. Authenticity & Execution Verification Queries
@@ -299,71 +290,6 @@ class OnDeviceInferenceEngine(private val context: Context) {
             "reverse string", "sorting", "compose", "react", "html", "css"
         )
         return codeTriggers.any { lower.contains(it) }
-    }
-
-    private fun trySolveMath(prompt: String): String? {
-        val lower = prompt.lowercase()
-        // Percentage: "what is 15% of 250" or "15% of 250"
-        val pctRegex = Regex("(?:what is\\s+)?([0-9.]+)\\s*%\\s*of\\s*([0-9.]+)", RegexOption.IGNORE_CASE)
-        pctRegex.find(lower)?.let { match ->
-            val p = match.groupValues[1].toDoubleOrNull()
-            val base = match.groupValues[2].toDoubleOrNull()
-            if (p != null && base != null) {
-                val res = (p / 100.0) * base
-                return buildString {
-                    append("### Calculation: $p% of $base\n\n")
-                    append("• **Formula:** `($p / 100) * $base`\n")
-                    append("• **Result:** **${formatNumber(res)}**\n")
-                }
-            }
-        }
-
-        // Square root: "sqrt(144)" or "square root of 144"
-        val sqrtRegex = Regex("(?:sqrt|square root of)\\s*\\(?([0-9.]+)\\)?", RegexOption.IGNORE_CASE)
-        sqrtRegex.find(lower)?.let { match ->
-            val num = match.groupValues[1].toDoubleOrNull()
-            if (num != null && num >= 0) {
-                val res = Math.sqrt(num)
-                return buildString {
-                    append("### Calculation: √$num\n\n")
-                    append("• **Result:** **${formatNumber(res)}**\n")
-                }
-            }
-        }
-
-        // Simple arithmetic: "25 * 14", "100 + 45", "1250 / 5", "50 - 18"
-        val arithRegex = Regex("([0-9.]+)\\s*([\\+\\-\\*/^])\\s*([0-9.]+)")
-        arithRegex.find(lower)?.let { match ->
-            val a = match.groupValues[1].toDoubleOrNull()
-            val op = match.groupValues[2]
-            val b = match.groupValues[3].toDoubleOrNull()
-            if (a != null && b != null) {
-                val result = when (op) {
-                    "+" -> a + b
-                    "-" -> a - b
-                    "*" -> a * b
-                    "/" -> if (b != 0.0) a / b else null
-                    "^" -> Math.pow(a, b)
-                    else -> null
-                }
-                if (result != null) {
-                    return buildString {
-                        append("### Calculation: $a $op $b\n\n")
-                        append("• **Result:** **${formatNumber(result)}**\n")
-                    }
-                }
-            }
-        }
-
-        return null
-    }
-
-    private fun formatNumber(num: Double): String {
-        return if (num == num.toLong().toDouble()) {
-            num.toLong().toString()
-        } else {
-            "%.4f".format(num).trimEnd('0').trimEnd('.')
-        }
     }
 
     private fun generateDirectCodeResponse(prompt: String, model: ModelInfo): String {
