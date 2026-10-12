@@ -22,6 +22,17 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  // Optional native llama.cpp bridge. It stays OFF by default so CI (which has
+  // no NDK installed) keeps building the pure-Kotlin fallback path. Enable a
+  // native build locally with:  ./gradlew assembleDebug -PenableNative=true
+  if (project.findProperty("enableNative") == "true") {
+    externalNativeBuild {
+      cmake {
+        path = file("src/main/cpp/CMakeLists.txt")
+      }
+    }
+  }
+
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
   // and updating Android apps in AI Studio.
   signingConfigs {

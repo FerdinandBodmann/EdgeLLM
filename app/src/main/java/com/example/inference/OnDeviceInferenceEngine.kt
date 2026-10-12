@@ -28,6 +28,13 @@ class OnDeviceInferenceEngine(private val context: Context) {
     private var isModelLoaded = false
     private var kvCacheTokens = 0
 
+    /**
+     * Handle for the optional native llama.cpp backend. Non-null only when the
+     * native library is compiled in (`-PenableNative=true`), a real GGUF file
+     * exists and the native context initialized successfully.
+     */
+    private var nativeHandle: Long? = null
+
     suspend fun loadModel(modelInfo: ModelInfo): Boolean = withContext(Dispatchers.Default) {
         try {
             _engineState.value = EngineState.LoadingModel(modelInfo.name, 0.1f)
@@ -40,6 +47,7 @@ class OnDeviceInferenceEngine(private val context: Context) {
             activeModel = modelInfo
             isModelLoaded = true
             kvCacheTokens = 0
+            loadNativeIfAvailable(modelInfo)
 
             _engineState.value = EngineState.Ready(
                 modelName = modelInfo.name,
@@ -93,8 +101,28 @@ class OnDeviceInferenceEngine(private val context: Context) {
         firstTokenTime = SystemClock.elapsedRealtime()
         val ttftMs = (firstTokenTime - startTime).coerceAtLeast(1L)
 
+        // Prefer the real llama.cpp backend when it has been loaded successfully.
+        val nativeTokens = nativeHandle?.let { handle ->
+            com.example.inference.native.LlamaBridge.generate(
+                handle = handle,
+                prompt = buildString {
+                    if (config.systemPrompt.isNotBlank()) append(config.systemPrompt).append("\n\n")
+                    append(prompt)
+                },
+                maxTokens = config.maxTokens.coerceIn(16, 2048),
+                temperature = config.temperature,
+                topP = config.topP
+            )?.takeIf { it.isNotBlank() }?.let { splitIntoStreamTokens(it) }
+        }
+        val usingNative = nativeTokens != null
+        val activeBackendLabel = if (usingNative) {
+            "llama.cpp JNI"
+        } else {
+            config.computeBackend.displayName
+        }
+
         // Synthesize response text tailored directly to the user's inquiry
-        val responseTokens = synthesizeResponseTokens(prompt, model, config)
+        val responseTokens = nativeTokens ?: synthesizeResponseTokens(prompt, model, config)
 
         val accumulated = StringBuilder()
         var tokenCount = 0
@@ -146,7 +174,7 @@ class OnDeviceInferenceEngine(private val context: Context) {
                 timeToFirstTokenMs = ttftMs,
                 totalDurationMs = currentTime - startTime,
                 ramAllocatedMb = model.memoryFootprintMb + (kvCacheTokens * 0.05f).toInt(),
-                activeBackend = config.computeBackend.displayName,
+                activeBackend = activeBackendLabel,
                 modelName = model.name
             )
 
@@ -176,7 +204,7 @@ class OnDeviceInferenceEngine(private val context: Context) {
             timeToFirstTokenMs = ttftMs,
             totalDurationMs = totalTime,
             ramAllocatedMb = model.memoryFootprintMb + (kvCacheTokens * 0.05f).toInt(),
-            activeBackend = config.computeBackend.displayName,
+            activeBackend = activeBackendLabel,
             modelName = model.name
         )
 
@@ -195,6 +223,36 @@ class OnDeviceInferenceEngine(private val context: Context) {
             ramMb = model.memoryFootprintMb
         )
     }.flowOn(Dispatchers.Default)
+
+    /**
+     * Attempts to open the native llama.cpp context for [modelInfo].
+     *
+     * This is a no-op unless the native library was compiled in (see
+     * `-PenableNative=true`) and a real GGUF file exists on disk, in which case
+     * generation is routed through JNI instead of the simulated engine.
+     */
+    private fun loadNativeIfAvailable(modelInfo: ModelInfo) {
+        releaseNative()
+        if (modelInfo.isEmbedded) return
+        val file = File(File(context.filesDir, "models"), modelInfo.filename)
+        if (!file.exists() || file.length() == 0L) return
+        nativeHandle = com.example.inference.native.LlamaBridge.init(
+            modelPath = file.absolutePath,
+            threads = Runtime.getRuntime().availableProcessors().coerceIn(1, 8),
+            contextLength = modelInfo.contextLength
+        )
+    }
+
+    private fun releaseNative() {
+        nativeHandle?.let { com.example.inference.native.LlamaBridge.free(it) }
+        nativeHandle = null
+    }
+
+    /** Splits a completed native string into streamable word tokens. */
+    private fun splitIntoStreamTokens(text: String): List<String> {
+        val parts = text.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        return parts.mapIndexed { index, word -> if (index == 0) word else " $word" }
+    }
 
     /**
      * Synthesizes tokens with natural language output addressing the user's specific query.
