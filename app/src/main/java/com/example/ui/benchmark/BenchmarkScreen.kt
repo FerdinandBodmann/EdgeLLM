@@ -23,10 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
@@ -36,6 +39,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -52,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,6 +65,8 @@ import com.example.inference.BenchmarkProgress
 import com.example.inference.BenchmarkResult
 import com.example.inference.ComputeBackend
 import com.example.ui.MainViewModel
+import android.content.Context
+import android.content.Intent
 import com.example.ui.theme.ClaudeAmberWheat
 import com.example.ui.theme.ClaudeCoral
 import com.example.ui.theme.ClaudeCoralLight
@@ -75,6 +82,8 @@ fun BenchmarkScreen(
     val activeModel = viewModel.modelManager.getActiveModelInfo()
     val config by viewModel.inferenceConfig.collectAsState()
     val benchmarkProgress by viewModel.benchmarkProgress.collectAsState()
+    val benchmarkHistory by viewModel.benchmarkHistory.collectAsState()
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -229,6 +238,88 @@ fun BenchmarkScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Persisted benchmark history
+        if (benchmarkHistory.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            tint = ClaudeCoral,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Recent Runs (${benchmarkHistory.size})",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { shareBenchmarkCsv(context, viewModel.benchmarkHistoryCsv()) },
+                            modifier = Modifier.testTag("export_benchmarks_button")
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = "Export CSV", tint = ClaudeAmberWheat)
+                        }
+                        IconButton(onClick = { viewModel.clearBenchmarkHistory() }) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Clear history",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    benchmarkHistory.take(10).forEach { run ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = run.modelName,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = "${formatRunTimestamp(run.timestampMs)} • ${run.computeBackend.ifBlank { "CPU" }}",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    ),
+                                    maxLines = 1
+                                )
+                            }
+                            Text(
+                                text = "%.1f tok/s".format(run.tokensPerSecond),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = ClaudeAmberWheat
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // Hyperparameter Tuning Card
         Card(
@@ -659,4 +750,21 @@ fun ClaudeBenchmarkStatCol(label: String, value: String) {
             )
         )
     }
+}
+
+/** Formats a benchmark timestamp for the history list. */
+private fun formatRunTimestamp(timestampMs: Long): String {
+    val formatter = java.text.SimpleDateFormat("MMM d, HH:mm", java.util.Locale.getDefault())
+    return formatter.format(java.util.Date(timestampMs))
+}
+
+/** Shares the benchmark history as CSV via the system share sheet. */
+private fun shareBenchmarkCsv(context: Context, csv: String) {
+    if (csv.isBlank()) return
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/csv"
+        putExtra(Intent.EXTRA_SUBJECT, "Synapse benchmark history")
+        putExtra(Intent.EXTRA_TEXT, csv)
+    }
+    context.startActivity(Intent.createChooser(intent, "Export benchmark history"))
 }

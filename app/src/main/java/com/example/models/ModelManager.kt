@@ -307,29 +307,61 @@ class ModelManager(private val context: Context) {
         val targetFile = File(modelsDir, model.filename)
         val tempFile = File(modelsDir, "${model.filename}.part")
 
+        // Guardrails: don't start a download the device cannot store or hold.
+        val freeStorageMb = com.example.util.DeviceCapabilities.freeStorageMb(context)
+        val alreadyDownloadedMb = if (tempFile.exists()) tempFile.length() / (1024L * 1024L) else 0L
+        val remainingMb = (model.downloadSizeMb.toLong() - alreadyDownloadedMb).coerceAtLeast(0L)
+        if (freeStorageMb > 0 && freeStorageMb < remainingMb) {
+            _downloadMessages.tryEmit(
+                "Not enough storage for ${model.name}: needs ~${remainingMb} MB but only ${freeStorageMb} MB free."
+            )
+            return
+        }
+        if (!com.example.util.DeviceCapabilities.fitsInMemory(context, model.memoryFootprintMb)) {
+            _downloadMessages.tryEmit(
+                "Note: ${model.name} needs ~${model.memoryFootprintMb} MB RAM, which may exceed this device."
+            )
+        }
+
         val job = scope.launch(Dispatchers.IO) {
             try {
-                _downloadMessages.tryEmit("Connecting to Hugging Face CDN for ${model.name}...")
+                val resumeFrom = if (tempFile.exists()) tempFile.length() else 0L
+                if (resumeFrom > 0) {
+                    _downloadMessages.tryEmit("Resuming ${model.name} from ${resumeFrom / (1024 * 1024)} MB...")
+                } else {
+                    _downloadMessages.tryEmit("Connecting to Hugging Face CDN for ${model.name}...")
+                }
 
-                val request = Request.Builder()
+                val requestBuilder = Request.Builder()
                     .url(url)
                     .header("User-Agent", "Synapse-Android-EdgeLLM/1.0")
-                    .build()
+                if (resumeFrom > 0) {
+                    requestBuilder.header("Range", "bytes=$resumeFrom-")
+                }
+                val request = requestBuilder.build()
 
                 val response = okHttpClient.newCall(request).execute()
+
+                val resumed = resumeFrom > 0 && response.code == 206
                 if (!response.isSuccessful) {
                     throw IOException("HTTP server returned error ${response.code}: ${response.message}")
                 }
 
                 val body = response.body ?: throw IOException("Empty response body from model repository")
                 val contentLength = body.contentLength()
-                val totalBytes = if (contentLength > 0) contentLength else (model.downloadSizeMb.toLong() * 1024 * 1024)
+                val fallbackTotal = model.downloadSizeMb.toLong() * 1024 * 1024
+                val totalBytes = when {
+                    resumed && contentLength > 0 -> resumeFrom + contentLength
+                    contentLength > 0 -> contentLength
+                    else -> fallbackTotal
+                }
 
                 val inputStream: InputStream = body.byteStream()
-                val outputStream = FileOutputStream(tempFile)
+                val outputStream = FileOutputStream(tempFile, resumed)
                 val buffer = ByteArray(64 * 1024)
                 var bytesRead: Int
-                var totalRead: Long = 0
+                var totalRead: Long = if (resumed) resumeFrom else 0L
+                val startBytes = totalRead
                 val startTime = System.currentTimeMillis()
                 var lastUiUpdate = 0L
 
@@ -344,7 +376,7 @@ class ModelManager(private val context: Context) {
                         val totalMb = totalBytes.toFloat() / (1024f * 1024f)
                         val progress = (totalRead.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
                         val elapsedSec = ((now - startTime) / 1000f).coerceAtLeast(0.1f)
-                        val speedMbps = (downloadedMb / elapsedSec) * 8f
+                        val speedMbps = ((totalRead - startBytes).toFloat() / (1024f * 1024f) / elapsedSec) * 8f
 
                         downloadProgressMap[modelId] = ModelStatus.Downloading(
                             progress = progress,
@@ -365,9 +397,16 @@ class ModelManager(private val context: Context) {
                 if (isActive) {
                     if (targetFile.exists()) targetFile.delete()
                     tempFile.renameTo(targetFile)
-                    _downloadMessages.tryEmit("Successfully downloaded ${model.name} (${targetFile.length() / (1024 * 1024)} MB).")
+                    val digest = sha256(targetFile)
+                    writeChecksum(targetFile, digest)
+                    val verification = if (digest.isBlank()) "" else " · SHA-256 ${digest.take(12)}…"
+                    _downloadMessages.tryEmit(
+                        "Successfully downloaded ${model.name} (${targetFile.length() / (1024 * 1024)} MB)$verification"
+                    )
                 } else {
-                    tempFile.delete()
+                    // Cancelled mid-flight: keep the partial file so the next
+                    // attempt can resume with an HTTP Range request.
+                    _downloadMessages.tryEmit("Paused ${model.name}; partial file kept for resume.")
                 }
 
                 downloadProgressMap.remove(modelId)
@@ -377,7 +416,7 @@ class ModelManager(private val context: Context) {
                     refreshModelsState()
                 }
             } catch (e: Exception) {
-                if (tempFile.exists()) tempFile.delete()
+                if (e is CancellationException) throw e
                 downloadProgressMap.remove(modelId)
                 downloadJobs.remove(modelId)
                 _downloadMessages.tryEmit("Download failed: ${e.localizedMessage ?: "Network error"}")
@@ -691,6 +730,34 @@ class ModelManager(private val context: Context) {
             activeDownloadsCount = downloadProgressMap.size,
             modelsDirectoryPath = modelsDir.absolutePath
         )
+    }
+}
+
+/** Lowercase hex SHA-256 of a file, or "" when it cannot be read. */
+private fun sha256(file: File): String {
+    if (!file.exists()) return ""
+    return try {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            var read: Int
+            while (input.read(buffer).also { read = it } != -1) {
+                digest.update(buffer, 0, read)
+            }
+        }
+        digest.digest().joinToString("") { "%02x".format(it) }
+    } catch (t: Throwable) {
+        ""
+    }
+}
+
+/** Stores a `<file>.sha256` sidecar used to verify a download later. */
+private fun writeChecksum(file: File, digest: String) {
+    if (digest.isBlank()) return
+    try {
+        File(file.parentFile, "${file.name}.sha256").writeText(digest)
+    } catch (t: Throwable) {
+        // The sidecar is advisory; a write failure must not break the download.
     }
 }
 
