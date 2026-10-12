@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -275,6 +276,22 @@ fun ChatScreen(
                                     )
                                 },
                                 modifier = Modifier.testTag("export_chat_menu_item")
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Documents (RAG)", color = GeminiTextPrimary) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = GeminiTextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    viewModel.showDocuments.value = true
+                                },
+                                modifier = Modifier.testTag("documents_menu_item")
                             )
                             DropdownMenuItem(
                                 text = { Text("Clear chat", color = GeminiErrorRed) },

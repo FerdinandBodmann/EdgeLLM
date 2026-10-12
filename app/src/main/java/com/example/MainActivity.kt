@@ -110,6 +110,7 @@ class MainActivity : ComponentActivity() {
 fun SynapseApp(viewModel: MainViewModel) {
     val selectedTab by viewModel.selectedTab.collectAsState()
     val showChatHistory by viewModel.showChatHistory.collectAsState()
+    val showDocuments by viewModel.showDocuments.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     BackHandler(enabled = selectedTab != 0) {
@@ -136,6 +137,12 @@ fun SynapseApp(viewModel: MainViewModel) {
             com.example.ui.history.ChatHistoryScreen(
                 viewModel = viewModel,
                 onClose = { viewModel.showChatHistory.value = false },
+                modifier = Modifier.windowInsetsPadding(bottomInsets)
+            )
+        } else if (showDocuments) {
+            com.example.ui.rag.DocumentScreen(
+                viewModel = viewModel,
+                onClose = { viewModel.showDocuments.value = false },
                 modifier = Modifier.windowInsetsPadding(bottomInsets)
             )
         } else {

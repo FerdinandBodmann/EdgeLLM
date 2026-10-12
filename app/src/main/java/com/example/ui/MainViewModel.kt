@@ -58,6 +58,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Overlay screens (rendered above the main content)
     val showChatHistory = MutableStateFlow(false)
+    val showDocuments = MutableStateFlow(false)
 
     // Chat Session & Messages
     private val _currentChatId = MutableStateFlow<Long?>(null)
@@ -557,6 +558,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- Local RAG (documents) --------------------------------------------------
+
+    val documents: StateFlow<List<com.example.data.DocumentEntity>> = knowledgeDao.getAllDocuments()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _documentNotice = MutableStateFlow<String?>(null)
+    val documentNotice: StateFlow<String?> = _documentNotice.asStateFlow()
+
+    fun clearDocumentNotice() {
+        _documentNotice.value = null
+    }
+
+    /** Imports a user-selected file into the local knowledge base and re-indexes. */
+    fun importDocument(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = com.example.rag.DocumentImporter.importFromUri(getApplication(), uri)
+            result.fold(
+                onSuccess = { document ->
+                    knowledgeDao.insertDocument(document)
+                    rebuildRagIndex()
+                    _documentNotice.value =
+                        "Indexed \"${document.name}\" (${document.tokenEstimate} estimated tokens)."
+                },
+                onFailure = { error ->
+                    _documentNotice.value = "Import failed: ${error.localizedMessage ?: "unknown error"}"
+                }
+            )
+        }
+    }
+
+    fun deleteDocument(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            knowledgeDao.deleteDocumentById(id)
+            rebuildRagIndex()
+        }
+    }
+
+    fun clearAllDocuments() {
+        viewModelScope.launch(Dispatchers.IO) {
+            knowledgeDao.deleteAllDocuments()
+            rebuildRagIndex()
+        }
+    }
 
     private suspend fun rebuildRagIndex() = withContext(Dispatchers.IO) {
         val docs = knowledgeDao.getAllDocumentsOnce()
